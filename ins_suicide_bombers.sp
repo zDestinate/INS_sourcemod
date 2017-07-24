@@ -38,7 +38,7 @@ new g_isDetonating[MAXPLAYERS+1];
 new g_yellCounter[MAXPLAYERS+1];
 new g_iRoundStatus = 0;
 new g_nSuiciderClass = 0;
-new bool:g_bAutoSuicide = true;
+new bool:g_bAutoSuicide = false;
 new bool:g_preRoundInitial = false;
 /*hitgroups
 generic = 0?
