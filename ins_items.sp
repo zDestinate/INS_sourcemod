@@ -16,6 +16,11 @@ enum Teams
 	TEAM_INSURGENTS,
 }
 
+new g_nFireResistance_ID = 8;
+new g_nSunglasses_ID = 28;
+new g_nDoubleJump_ID = 25;
+new g_nSpeedBoost_ID = 26;
+
 Handle hPlayerCheckFlash[MAXPLAYERS+1];
 Handle hPlayerCheckSpeed[MAXPLAYERS+1];
 new g_iPlayerEquipGear;
@@ -76,6 +81,8 @@ public OnPluginStart()
 	g_bDoubleJump	= GetConVarBool(g_cvJumpEnable);
 	g_flBoost		= GetConVarFloat(g_cvJumpBoost);
 	g_iJumpMax		= GetConVarInt(g_cvJumpMax);
+	
+	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
 }
 
 public OnClientPostAdminCheck(client) 
@@ -114,6 +121,18 @@ public OnClientDisconnect(client)
 	}
 }
 
+public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBroadcast )
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+
+	decl String:class_template[64];
+	GetEventString(event, "class_template",class_template,sizeof(class_template));
+	if(client && (StrContains(class_template, "runner") > -1))
+	{
+		CreateTimer(1.0, BotCheckSpeed_Timer, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
 public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype) 
 {
 	//Get player armor ID
@@ -126,7 +145,7 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	for (new count=0; count<2; count++)
 	{
 		//If player armor is 8 (Which is fire resistance armor) and attacker weapon is fire
-		if((StrEqual(sWeapon, WeaponNames[count])) && (nArmorItemID == 8))
+		if((StrEqual(sWeapon, WeaponNames[count])) && (nArmorItemID == g_nFireResistance_ID))
 		{
 			//If attack and victim on the same team and player is wearing FR then they take no damage
 			if(GetClientTeam(victim) == GetClientTeam(attacker))
@@ -166,7 +185,7 @@ public Action PlayerCheckFlash_Timer(Handle timer, any client)
 		new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
 		
 		//If accessory item id = 29 (29 is sunglasses item ID)
-		if(nAccessoryItemID == 29)
+		if(nAccessoryItemID == g_nSunglasses_ID)
 		{
 			//Set player flash alpha (Which is the opacity)
 			SetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha", 0.5);
@@ -198,7 +217,7 @@ public Action PlayerCheckSpeed_Timer(Handle timer, any client)
 		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5));
 		
 		//If item is speed boost ID
-		if(nPerkSpeedBoostItemID == 27)
+		if(nPerkSpeedBoostItemID == g_nSpeedBoost_ID)
 		{
 			//Increase player speedboost by 20%
 			SetEntDataFloat(client, g_iSpeedOffset, 1.20);
@@ -208,6 +227,21 @@ public Action PlayerCheckSpeed_Timer(Handle timer, any client)
 			//Reset player speed to 1
 			SetEntDataFloat(client, g_iSpeedOffset, 1.0);
 		}
+	}
+	
+	//Continue timer
+	return Plugin_Continue;
+}
+
+public Action BotCheckSpeed_Timer(Handle timer, any client)
+{
+	//Get current client team
+	new nCurrentPlayerTeam = GetClientTeam(client);
+	
+	//Check if player is connected and is alive and player team is security
+	if((IsClientConnected(client)) && (IsPlayerAlive(client)) && (nCurrentPlayerTeam == view_as<int>(TEAM_INSURGENTS)))
+	{	
+		SetEntDataFloat(client, g_iSpeedOffset, 1.20);
 	}
 	
 	//Continue timer
@@ -291,7 +325,7 @@ stock ReJump(const any:client) {
 	new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5))
 	
 	//If item is 26 then its double jump perk. Allow player to perform a double jump
-	if(nPerkItemID == 26)
+	if(nPerkItemID == g_nDoubleJump_ID)
 	{
 		if ( 1 <= g_iJumps[client] <= g_iJumpMax) {						// has jumped at least once but hasn't exceeded max re-jumps
 			g_iJumps[client]++											// increment jump count
