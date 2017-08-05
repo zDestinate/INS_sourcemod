@@ -21,10 +21,9 @@ new g_nSunglasses_ID = 28;
 new g_nDoubleJump_ID = 25;
 new g_nSpeedBoost_ID = 26;
 
-Handle hPlayerCheckFlash[MAXPLAYERS+1];
-Handle hPlayerCheckSpeed[MAXPLAYERS+1];
 new g_iPlayerEquipGear;
 new g_iSpeedOffset;
+new g_nClientRunnerID = 0;
 
 new
 	Handle:g_cvJumpBoost	= INVALID_HANDLE,
@@ -42,7 +41,7 @@ public Plugin:myinfo =
 	name = "[INS] Items",
 	author = "Neko-",
 	description = "Custom item ability for INS",
-	version = "1.0.0",
+	version = "1.0.1",
 }
 
 public OnPluginStart()
@@ -83,6 +82,14 @@ public OnPluginStart()
 	g_iJumpMax		= GetConVarInt(g_cvJumpMax);
 	
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
+	HookEvent("player_blind", Event_OnFlashPlayerPre, EventHookMode_Pre);
+	HookEvent("player_spawn", Event_PlayerRespawnPre, EventHookMode_Pre);
+	AddCommandListener(ResupplyListener, "inventory_resupply");
+}
+
+public OnMapEnd()
+{
+	g_nClientRunnerID = 0;
 }
 
 public OnClientPostAdminCheck(client) 
@@ -92,32 +99,6 @@ public OnClientPostAdminCheck(client)
 	{
 		//Hook damage
 		SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage); 
-		
-		//Start timer for the player
-		hPlayerCheckFlash[client] = CreateTimer(0.5, PlayerCheckFlash_Timer, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-		hPlayerCheckSpeed[client] = CreateTimer(1.0, PlayerCheckSpeed_Timer, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	}
-}
-
-public OnClientDisconnect(client)
-{
-	//Check if the flash timer from this client is null
-	if(hPlayerCheckFlash[client] != null)
-	{
-		//Kill timer and set timer to null
-		KillTimer(hPlayerCheckFlash[client]);
-		hPlayerCheckFlash[client] = null;
-	}
-	
-	//Check if the speed timer from this client is null
-	if(hPlayerCheckSpeed[client] != null)
-	{
-		//Kill timer and set timer to null
-		KillTimer(hPlayerCheckSpeed[client]);
-		hPlayerCheckSpeed[client] = null;
-		
-		//Reset player speed to 1.0
-		SetEntDataFloat(client, g_iSpeedOffset, 1.0);
 	}
 }
 
@@ -129,8 +110,30 @@ public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBr
 	GetEventString(event, "class_template",class_template,sizeof(class_template));
 	if(client && (StrContains(class_template, "runner") > -1))
 	{
-		CreateTimer(1.0, BotCheckSpeed_Timer, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		g_nClientRunnerID = client;
 	}
+}
+
+public Action:Event_OnFlashPlayerPre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+	new nCurrentPlayerTeam = GetClientTeam(client);
+	//Check if player is connected and is alive and player team is security
+	if((IsClientConnected(client)) && (IsPlayerAlive(client)) && (nCurrentPlayerTeam == view_as<int>(TEAM_SECURITY)))
+	{
+		//Get player the 4th gear item which is accessory (3rd offset with a DWORD(4 bytes))
+		new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
+		
+		//If accessory item id = 29 (29 is sunglasses item ID)
+		if(nAccessoryItemID == g_nSunglasses_ID)
+		{
+			//Set player flash alpha (Which is the opacity)
+			SetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha", 0.5);
+		}
+	}
+	
+	return Plugin_Continue;
 }
 
 public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype) 
@@ -165,47 +168,33 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	return Plugin_Continue;
 }
 
-public Action PlayerCheckFlash_Timer(Handle timer, any client)
+public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	//Check if this client is valid and not a bot
-	if((!IsValidClient(client)) || (IsFakeClient(client)))
-	{
-		hPlayerCheckFlash[client] = null;
-		//Stop timer
-		return Plugin_Stop;
-	}
-	
-	//Get current client team
-	new nCurrentPlayerTeam = GetClientTeam(client);
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	//Check if player is connected and is alive and player team is security
-	if((IsClientConnected(client)) && (IsPlayerAlive(client)) && (nCurrentPlayerTeam == view_as<int>(TEAM_SECURITY)))
-	{
-		//Get player the 4th gear item which is accessory (3rd offset with a DWORD(4 bytes))
-		new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
+	if(IsClientConnected(client))
+	{	
+		//Speed boost
+		//Get player misc item (5th offset with a DWORD(4 bytes))
+		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5));
 		
-		//If accessory item id = 29 (29 is sunglasses item ID)
-		if(nAccessoryItemID == g_nSunglasses_ID)
+		//If item is speed boost ID
+		if((nPerkSpeedBoostItemID == g_nSpeedBoost_ID) || (client == g_nClientRunnerID))
 		{
-			//Set player flash alpha (Which is the opacity)
-			SetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha", 0.5);
+			//Increase player speedboost by 20%
+			SetEntDataFloat(client, g_iSpeedOffset, 1.20);
+		}
+		else
+		{
+			//Reset player speed to 1
+			SetEntDataFloat(client, g_iSpeedOffset, 1.0);
 		}
 	}
-	
-	//Continue timer
-	return Plugin_Continue;
 }
 
-public Action PlayerCheckSpeed_Timer(Handle timer, any client)
+public Action:ResupplyListener(client, const String:cmd[], argc)
 {
-	//Check if this client is valid and not a bot
-	if((!IsValidClient(client)) || (IsFakeClient(client)))
-	{
-		hPlayerCheckSpeed[client] = null;
-		//Stop timer
-		return Plugin_Stop;
-	}
-	
 	//Get current client team
 	new nCurrentPlayerTeam = GetClientTeam(client);
 	
@@ -229,22 +218,6 @@ public Action PlayerCheckSpeed_Timer(Handle timer, any client)
 		}
 	}
 	
-	//Continue timer
-	return Plugin_Continue;
-}
-
-public Action BotCheckSpeed_Timer(Handle timer, any client)
-{
-	//Get current client team
-	new nCurrentPlayerTeam = GetClientTeam(client);
-	
-	//Check if player is connected and is alive and player team is security
-	if((IsClientConnected(client)) && (IsPlayerAlive(client)) && (nCurrentPlayerTeam == view_as<int>(TEAM_INSURGENTS)))
-	{	
-		SetEntDataFloat(client, g_iSpeedOffset, 1.20);
-	}
-	
-	//Continue timer
 	return Plugin_Continue;
 }
 
