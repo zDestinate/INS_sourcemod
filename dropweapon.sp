@@ -119,7 +119,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	//Get client accessories
 	new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
 	
-	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 29))
+	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 30))
 	{
 		/*
 		for (new count=0; count<=63; count++)

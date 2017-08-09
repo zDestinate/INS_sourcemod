@@ -17,7 +17,7 @@ enum Teams
 }
 
 new g_nFireResistance_ID = 8;
-new g_nSunglasses_ID = 28;
+new g_nSunglasses_ID = 29;
 new g_nDoubleJump_ID = 25;
 new g_nSpeedBoost_ID = 26;
 
