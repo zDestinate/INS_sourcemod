@@ -5,7 +5,7 @@ public Plugin:myinfo = {
     name = "[INS] Flare and VIP",
     description = "Flare respawn and VIP class",
     author = "Neko-",
-    version = "1.0.0",
+    version = "1.0.1",
 };
 
 #define SPECTATOR_TEAM	0
@@ -127,6 +127,10 @@ public Action:WeaponFireEvents(Event event, const char[] name, bool dontBroadcas
 				//Start respawning timer
 				CreateTimer(1.0, Timer_RespawnPlayer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 			}
+			else
+			{
+				PrintHintText(client, "There is already another flare activated");
+			}
 		}
 		else if(IsValidEntity(CurrentUserWeapon) && (StrEqual(UserWeaponClass, "weapon_p2a1")) && (!IsLookingAtSkybox(client)))
 		{
@@ -134,7 +138,7 @@ public Action:WeaponFireEvents(Event event, const char[] name, bool dontBroadcas
 		}
 	}
 	
-	return Plugin_Continue;
+	//return Plugin_Continue;
 }
 
 public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBroadcast )
@@ -196,8 +200,6 @@ public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:don
 			CreateTimer(1.0, Timer_Check_VIP, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
-	
-	return Plugin_Continue;
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
@@ -219,8 +221,6 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	{
 		g_nVIP_Kills++;
 	}
-	
-	return Plugin_Continue;
 }
 
 public Action Timer_RespawnPlayer(Handle timer)
@@ -228,11 +228,12 @@ public Action Timer_RespawnPlayer(Handle timer)
 	static int nSecond = 10;
 	if(g_nRoundStatus == 0)
 	{
+		g_nFlareFiredActivated = false;
+		nSecond = 10;
 		return Plugin_Stop;
 	}
 	
 	g_nFlareFiredActivated = true;
-	
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 	
@@ -285,17 +286,44 @@ public Action:RespawnPlayer(Handle:Timer, any:client)
 	}
 }
 
+public bool:FilterOutPlayer(entity, contentsMask, any:data)
+{
+    if (entity == data)
+    {
+        return false;
+    }
+    
+    return true;
+}
+
 bool:IsLookingAtSkybox(client)
 {
 	decl Float:pos[3], Float:ang[3], Float:EndOrigin[3];
-	GetClientAbsOrigin(client, pos);
+	
+	//Get client position
+	//GetClientAbsOrigin(client, pos);
+	GetClientEyePosition(client, pos);
+	
+	//Get client angles
 	GetClientEyeAngles(client, ang);
-	TR_TraceRay(pos, ang, MASK_SHOT, RayType_Infinite);
+	
+	//Trace ray to find if the bullet hit the end of the entity
+	//Using MASK_SHOT to trace like bullet that hit walls and stuff
+	//RayType_Infinite to make the start position to infinite in case if its the sky
+	//(Skybox doesn't have end position unless the map maker add invisible wall at the top)
+	//TR_TraceRay(pos, ang, MASK_SHOT, RayType_Infinite);
+	TR_TraceRayFilter(pos, ang, MASK_SHOT, RayType_Infinite, TraceEntityFilter:FilterOutPlayer, client);
+	
+	//If it it hit then run the if statement
 	if(TR_DidHit())
 	{
+		//Get the end position of the traceray
 		TR_GetEndPosition(EndOrigin);
-		TR_TraceRay(EndOrigin, ang, MASK_SHOT, RayType_Infinite);
 		
+		//This should not need (It was here for testing)
+		//TR_TraceRay(EndOrigin, ang, MASK_SHOT, RayType_Infinite);
+		
+		//Use GetVectorDistance to get the distance between the client and the end position
 		if((ang[0] < -30) && (GetVectorDistance(EndOrigin, pos) > 400))
 		{
 			return true;
