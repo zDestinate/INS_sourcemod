@@ -17,7 +17,7 @@ public Plugin:myinfo =
     name = "[INS] SpawnProtection",
     author = "Neko-",
     description = "Adds spawn protection",
-    version = "1.0.1"
+    version = "1.0.2"
 }
 
 public OnPluginStart()
@@ -30,6 +30,7 @@ public OnPluginStart()
 
 	HookEvent("player_spawn", Event_PlayerSpawnPost);
 	HookEvent("round_start", Event_RoundStartPost);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 }
 
 public OnMapStart()
@@ -95,7 +96,7 @@ public Action:Event_PlayerSpawnPost(Handle:event, const String:name[], bool:dont
 		}
 		
 		//Set damage taken to 0 (So player won't take damage)
-		SetEntProp(client, Prop_Data, "m_takedamage", 0, 1);
+		SetEntProp(client, Prop_Data, "m_takedamage", 1, 1);
 		
 		//Create a timer to restore the original damage taken
 		CreateTimer(Time, RemoveProtection, client);
@@ -108,10 +109,25 @@ public Action:Event_PlayerSpawnPost(Handle:event, const String:name[], bool:dont
 	return Plugin_Continue;
 }
 
+public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+
+	if((!IsFakeClient(victim)) && (victim == attacker))
+	{
+		//Create a timer to restore the original damage taken
+		CreateTimer(0.0, RemoveProtection, victim);
+	}
+}
+
 public Action:RemoveProtection(Handle:timer, any:client)
 {
+	//Get player protection
+	new nTakeDamage = GetEntProp(client, Prop_Data, "m_takedamage");
+	
 	//If player still in game
-	if(IsClientInGame(client))
+	if(IsClientInGame(client) && (nTakeDamage == 1))
 	{
 		//Restore the original damage taken to player
 		SetEntProp(client, Prop_Data, "m_takedamage", 2, 1);

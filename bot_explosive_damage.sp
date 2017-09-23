@@ -6,7 +6,7 @@ public Plugin:myinfo = {
     name = "[INS] Bot explosive damage",
     description = "Increase the explosive damage for bot",
     author = "Neko-",
-    version = "1.0.3",
+    version = "1.0.4",
 };
 
 new const String:GrenadeName[][] =
@@ -14,35 +14,39 @@ new const String:GrenadeName[][] =
 	"grenade_m67",
 	"grenade_f1",
 	"grenade_gp25_he"
-}
+};
 
 new const String:GrenadeFireName[][] =
 {
 	"grenade_molotov",
 	"grenade_anm14"
-}
+};
 
 new const String:RocketName[][] =
 {
 	"rocket_at4",
 	"rocket_rpg7"
-}
+};
 
+new const String:GrenadeGasName[] = "grenade_gas";
 
 
 new Handle:cvarEnabled = INVALID_HANDLE;
 new Handle:cvarGrenadeMultiplierAmount = INVALID_HANDLE;
 new Handle:cvarFireMultiplierAmount = INVALID_HANDLE;
 new Handle:cvarRocketMultiplierAmount = INVALID_HANDLE;
+new Handle:cvarGasMultiplierAmount = INVALID_HANDLE;
 
 int nGrenadeMultiplierAmount;
 int nFireMultiplierAmount;
 int nRocketMultiplierAmount;
+int nGasMultiplierAmount;
 
 public OnPluginStart() 
 {
 	cvarEnabled = CreateConVar("sm_ins_bot_explosive_enabled", "1", "sets whether is bot explosive enable or not", FCVAR_PROTECTED, true, 0.0, true, 1.0);
 	cvarGrenadeMultiplierAmount = CreateConVar("sm_ins_bot_grenade_multiplier", "1", "the amount of grenade damage multiplier", FCVAR_PROTECTED, true, 1.0, true, 4.0);
+	cvarGasMultiplierAmount = CreateConVar("sm_ins_bot_gasgrenade_multiplier", "1", "the amount of gas grenade damage multiplier", FCVAR_PROTECTED, true, 1.0, true, 4.0);
 	cvarFireMultiplierAmount = CreateConVar("sm_ins_bot_firegrenade_multiplier", "1", "the amount of fire grenade like AN-M14 and Molotov damage multiplier", FCVAR_PROTECTED, true, 1.0, true, 4.0);
 	cvarRocketMultiplierAmount = CreateConVar("sm_ins_bot_rocket_multiplier", "1", "the amount of rocket damage multiplier", FCVAR_PROTECTED, true, 1.0, true, 4.0);
 	
@@ -55,6 +59,7 @@ public OnMapStart()
 	nGrenadeMultiplierAmount = GetConVarInt(cvarGrenadeMultiplierAmount);
 	nFireMultiplierAmount = GetConVarInt(cvarFireMultiplierAmount);
 	nRocketMultiplierAmount = GetConVarInt(cvarRocketMultiplierAmount);
+	nGasMultiplierAmount = GetConVarInt(cvarGasMultiplierAmount);
 }
 
 public OnClientPutInServer(client) 
@@ -99,15 +104,17 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 			damage *= nFireMultiplierAmount;
 			return Plugin_Changed;
 		}
-	}
-	
-	for (new count=0; count<2; count++)
-	{
-		if(StrEqual(sWeapon, RocketName[count]))
+		else if(StrEqual(sWeapon, RocketName[count]))
 		{
 			damage *= nRocketMultiplierAmount;
 			return Plugin_Changed;
 		}
+	}
+	
+	if(StrEqual(sWeapon, GrenadeGasName))
+	{
+		damage *= nGasMultiplierAmount;
+		return Plugin_Changed;
 	}
 	
 	return Plugin_Continue;

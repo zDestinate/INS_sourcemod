@@ -45,9 +45,8 @@ public Action:Drop_Stuff(client,args)
 			{
 				return Plugin_Continue;
 			}
-			
-			SDKHooks_DropWeapon(client, CurrentUserWeapon, NULL_VECTOR, NULL_VECTOR);
 		}
+		SDKHooks_DropWeapon(client, CurrentUserWeapon, NULL_VECTOR, NULL_VECTOR);
 	}
 	
 	return Plugin_Handled;

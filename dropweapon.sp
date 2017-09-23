@@ -69,15 +69,16 @@ new const String:WeaponNames[][] =
 	"weapon_ae_glock18",
 	"weapon_ae_glock19",
 	"weapon_ae_uzi", //51-63
-}
+};
 
 new const String:BlacklistWeaponNames[][] =
 {
 	"weapon_kabar",
 	"weapon_gurkha",
 	"weapon_knife",
-	"weapon_kukri"
-}
+	"weapon_kukri",
+	"weapon_katana"
+};
 
 new g_iPlayerEquipGear;
 
@@ -109,7 +110,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	//GetClientWeapon(client, weapon, sizeof(weapon))
 	
 	new CurrentUserWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if (CurrentUserWeapon < 0) {
+	new nTakeDamage = GetEntProp(client, Prop_Data, "m_takedamage");
+	if ((CurrentUserWeapon < 0) || (nTakeDamage == 1)) {
 		return Plugin_Continue;
 	}
 		
@@ -119,7 +121,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	//Get client accessories
 	new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
 	
-	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 30))
+	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 31))
 	{
 		/*
 		for (new count=0; count<=63; count++)
@@ -142,7 +144,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		}
 		*/
 		
-		for (new count=0; count<4; count++)
+		for (new count=0; count<5; count++)
 		{
 			if (StrEqual(User_Weapon, BlacklistWeaponNames[count]))
 			{

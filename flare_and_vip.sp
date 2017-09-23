@@ -125,7 +125,7 @@ public Action:WeaponFireEvents(Event event, const char[] name, bool dontBroadcas
 				nShooterID = client;
 				
 				//Start respawning timer
-				CreateTimer(1.0, Timer_RespawnPlayer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(1.0, Timer_RespawnPlayer, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 			}
 			else
 			{
@@ -167,7 +167,7 @@ public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBr
 			g_nVIP_ID = client;
 		}
 		
-		if((g_nVIP_ID == client) && (StrContains(class_template, "vip") == -1))
+		if((client == g_nVIP_ID) && (StrContains(class_template, "vip") == -1))
 		{
 			g_nVIP_ID = 0;
 		}
@@ -223,7 +223,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	}
 }
 
-public Action Timer_RespawnPlayer(Handle timer)
+public Action Timer_RespawnPlayer(Handle timer, any client)
 {
 	static int nSecond = 10;
 	if(g_nRoundStatus == 0)
@@ -253,12 +253,14 @@ public Action Timer_RespawnPlayer(Handle timer)
 		
 		g_nFlareFiredActivated = false;
 		PrintHintTextToAll("Team reinforcements have arrived!");
+		//PrintHintText(client, "Team reinforcements have arrived!");
 		nSecond = 10;
 		return Plugin_Stop;
 	}
 	else
 	{
 		PrintHintTextToAll("Team reinforcements inbound in %d", nSecond);
+		//PrintHintText(client, "Team reinforcements inbound in %d", nSecond);
 		nSecond--;
 	}
  
@@ -267,7 +269,11 @@ public Action Timer_RespawnPlayer(Handle timer)
 
 public CreateRespawnPlayerTimer(client)
 {
-	CreateTimer(0.0, RespawnPlayer, client);
+	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+	if(fRandom >= 0.5)
+	{
+		CreateTimer(0.0, RespawnPlayer, client);
+	}
 }
 
 public Action:RespawnPlayer(Handle:Timer, any:client)
@@ -320,9 +326,6 @@ bool:IsLookingAtSkybox(client)
 		//Get the end position of the traceray
 		TR_GetEndPosition(EndOrigin);
 		
-		//This should not need (It was here for testing)
-		//TR_TraceRay(EndOrigin, ang, MASK_SHOT, RayType_Infinite);
-		
 		//Use GetVectorDistance to get the distance between the client and the end position
 		if((ang[0] < -30) && (GetVectorDistance(EndOrigin, pos) > 400))
 		{
@@ -349,6 +352,7 @@ public Action Timer_Check_VIP(Handle timer)
 		g_nVIP_ID = 0;
 		g_nVIP_Kills = 0;
 		g_TimerRunning = false;
+		g_bVIP_Alive = false;
 		return Plugin_Stop;
 	}
 	
@@ -469,7 +473,7 @@ public Action:RewardSupplyPoint(Handle:Timer)
 				new nRandomPoint = GetRandomInt(1, 3);
 				nSupplyPoint += nRandomPoint;
 				nAvailableSupplyPoint += nRandomPoint;
-				PrintHintText(client, "VIP has survived\nYou have received %i supply point(s) as reward", nRandomPoint);
+				//PrintHintText(client, "VIP has survived\nYou have received %i supply point(s) as reward", nRandomPoint);
 			}
 
 			//Set client nSupplyPoint
@@ -499,7 +503,7 @@ public Action:RewardSupplyPointKills(Handle:Timer)
 				new nRandomPoint = GetRandomInt(1, 3);
 				nSupplyPoint += nRandomPoint;
 				nAvailableSupplyPoint += nRandomPoint;
-				PrintHintText(client, "VIP has killed %i enemies without dying\nYou have received %i supply point(s) as reward", g_nVIP_TotalKillsTemp, nRandomPoint);
+				//PrintHintText(client, "VIP has killed %i enemies without dying\nYou have received %i supply point(s) as reward", g_nVIP_TotalKillsTemp, nRandomPoint);
 			}
 
 			//Set client nSupplyPoint
@@ -521,6 +525,14 @@ public Action:Cmd_VIP(client, args)
 	else if((g_nVIP_ID != 0) && g_bVIP_Alive && (nPlayerHealth > 0))
 	{
 		PrintHintText(client, "VIP need to survive %i/%i seconds or %i/%i kills without dying", g_nSecond, g_nRandomTime, g_nVIP_Kills, g_nVIP_TotalKills);
+	}
+	else if((g_nVIP_ID != 0) && (!g_bVIP_Alive) && (client != g_nVIP_ID) && (nPlayerHealth > 0))
+	{
+		PrintHintText(client, "VIP is dead");
+	}
+	else if((g_nVIP_ID == 0) && (nPlayerHealth > 0))
+	{
+		PrintHintText(client, "No VIP available");
 	}
 	return Plugin_Handled;
 }

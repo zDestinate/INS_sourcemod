@@ -6,7 +6,9 @@ new const String:WeaponNames[][] =
 {
 	"grenade_anm14",
 	"grenade_molotov"
-}
+};
+
+new const String:ToxicSmoke[] = "grenade_gas";
 
 enum Teams
 {
@@ -14,12 +16,13 @@ enum Teams
 	TEAM_SPECTATORS,
 	TEAM_SECURITY,
 	TEAM_INSURGENTS,
-}
+};
 
 new g_nFireResistance_ID = 8;
-new g_nSunglasses_ID = 29;
-new g_nDoubleJump_ID = 25;
-new g_nSpeedBoost_ID = 26;
+new g_nSunglasses_ID = 30;
+new g_nDoubleJump_ID = 26;
+new g_nSpeedBoost_ID = 27;
+new g_nGasMask_ID = 25;
 
 new g_iPlayerEquipGear;
 new g_iSpeedOffset;
@@ -41,8 +44,8 @@ public Plugin:myinfo =
 	name = "[INS] Items",
 	author = "Neko-",
 	description = "Custom item ability for INS",
-	version = "1.0.1",
-}
+	version = "1.0.2"
+};
 
 public OnPluginStart()
 {
@@ -125,7 +128,7 @@ public Action:Event_OnFlashPlayerPre(Handle:event, const String:name[], bool:don
 		//Get player the 4th gear item which is accessory (3rd offset with a DWORD(4 bytes))
 		new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
 		
-		//If accessory item id = 29 (29 is sunglasses item ID)
+		//If accessory is sunglasses item ID)
 		if(nAccessoryItemID == g_nSunglasses_ID)
 		{
 			//Set player flash alpha (Which is the opacity)
@@ -141,13 +144,16 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	//Get player armor ID
 	new nArmorItemID = GetEntData(victim, g_iPlayerEquipGear);
 	
+	//Get player helmet ID
+	new nHelmetItemID = GetEntData(victim, g_iPlayerEquipGear + (4 * 1));
+	
 	//Get weapon of the attacker
 	decl String:sWeapon[32];
 	GetEdictClassname(inflictor, sWeapon, sizeof(sWeapon));
 	
 	for (new count=0; count<2; count++)
 	{
-		//If player armor is 8 (Which is fire resistance armor) and attacker weapon is fire
+		//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
 		if((StrEqual(sWeapon, WeaponNames[count])) && (nArmorItemID == g_nFireResistance_ID))
 		{
 			//If attack and victim on the same team and player is wearing FR then they take no damage
@@ -163,6 +169,13 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 				return Plugin_Changed;
 			}
 		}
+	}
+	
+	//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
+	if((StrEqual(sWeapon, ToxicSmoke)) && (nHelmetItemID == g_nGasMask_ID))
+	{
+		damage = 0.0;
+		return Plugin_Changed;
 	}
 	
 	return Plugin_Continue;
