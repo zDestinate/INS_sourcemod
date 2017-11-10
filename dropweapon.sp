@@ -1,7 +1,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
-#define PLUGIN_VERSION "1.0.3"
+#define PLUGIN_VERSION "1.0.4"
 
 new const String:WeaponNames[][] =
 {
@@ -77,7 +77,8 @@ new const String:BlacklistWeaponNames[][] =
 	"weapon_gurkha",
 	"weapon_knife",
 	"weapon_kukri",
-	"weapon_katana"
+	"weapon_katana",
+	"grenade_gas"
 };
 
 new g_iPlayerEquipGear;
@@ -100,13 +101,19 @@ public OnPluginStart()
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client     = GetClientOfUserId(GetEventInt(event, "userid"))
-	//new attacker   = GetClientOfUserId(GetEventInt(event, "attacker"))
+	new attacker   = GetClientOfUserId(GetEventInt(event, "attacker"))
 	new hitgroup = GetEventInt(event, "hitgroup")
 	new damage   = GetEventInt(event, "dmg_health")
 	new health = GetClientHealth(client)
+	
+	if(attacker == 0)
+	{
+		return Plugin_Continue;
+	}
+	
 	//new slot
 	decl String:weapon[32]
-	//GetClientWeapon(attacker, weapon, sizeof(weapon))
+	GetClientWeapon(attacker, weapon, sizeof(weapon))
 	//GetClientWeapon(client, weapon, sizeof(weapon))
 	
 	new CurrentUserWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -144,7 +151,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		}
 		*/
 		
-		for (new count=0; count<5; count++)
+		//Blacklist gas grenade		
+		for (new count=0; count<6; count++)
 		{
 			if (StrEqual(User_Weapon, BlacklistWeaponNames[count]))
 			{

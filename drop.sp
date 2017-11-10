@@ -15,7 +15,8 @@ new const String:BlacklistWeaponNames[][] =
 	"weapon_kabar",
 	"weapon_gurkha",
 	"weapon_knife",
-	"weapon_kukri"
+	"weapon_kukri",
+	"weapon_katana"
 }
 
 public OnPluginStart()
@@ -38,7 +39,7 @@ public Action:Drop_Stuff(client,args)
 		GetEdictClassname(CurrentUserWeapon, User_Weapon, sizeof(User_Weapon));
 		
 		new AdminId:admin = GetUserAdmin(client);
-		for (new count=0; count<4; count++)
+		for (new count=0; count<5; count++)
 		{
 			//If player not admin, prevent user from dropping knife
 			if (StrEqual(User_Weapon, BlacklistWeaponNames[count]) && (admin == INVALID_ADMIN_ID) && (GetAdminFlag(admin, Admin_Generic, Access_Effective) == false))
