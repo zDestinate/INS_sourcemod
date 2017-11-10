@@ -2,12 +2,6 @@
 #include <sdktools>
 #include <sdkhooks>
 
-new const String:WeaponNames[][] =
-{
-	"grenade_anm14",
-	"grenade_molotov"
-};
-
 new const String:ToxicSmoke[] = "grenade_gas";
 
 enum Teams
@@ -154,7 +148,7 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	for (new count=0; count<2; count++)
 	{
 		//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
-		if((StrEqual(sWeapon, WeaponNames[count])) && (nArmorItemID == g_nFireResistance_ID))
+		if((StrEqual(sWeapon, "grenade_anm14") || StrEqual(sWeapon, "grenade_molotov")) && (nArmorItemID == g_nFireResistance_ID))
 		{
 			//If attack and victim on the same team and player is wearing FR then they take no damage
 			if(GetClientTeam(victim) == GetClientTeam(attacker))
