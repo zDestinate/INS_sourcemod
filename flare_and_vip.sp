@@ -41,6 +41,7 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_team", OnPlayerTeam);
 	
 	StartPrepSDKCall(SDKCall_Player);
 	g_hGameConfig = LoadGameConfigFile("insurgency.games");
@@ -174,6 +175,21 @@ public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBr
 	}
 }
 
+public Action:OnPlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client  = GetClientOfUserId(GetEventInt(event, "userid"));
+	new team    = GetEventInt(event, "team");
+	if((team == TEAM_SPEC) && (client == g_nVIP_ID))
+	{
+		g_nPlayer[client] = false;
+		g_nVIP_ID = 0;
+		g_nVIP_Kills = 0;
+		g_bVIP_Alive = false;
+	}
+	
+	return Plugin_Continue;
+}
+
 stock void ReloadPlugin() {
     char filename[PLATFORM_MAX_PATH];
     GetPluginFilename(INVALID_HANDLE, filename, sizeof(filename));
@@ -252,15 +268,15 @@ public Action Timer_RespawnPlayer(Handle timer, any client)
 		}
 		
 		g_nFlareFiredActivated = false;
-		PrintHintTextToAll("Team reinforcements have arrived!");
-		//PrintHintText(client, "Team reinforcements have arrived!");
+		//PrintHintTextToAll("Team reinforcements have arrived!");
+		PrintHintText(client, "Team reinforcements have arrived!");
 		nSecond = 10;
 		return Plugin_Stop;
 	}
 	else
 	{
-		PrintHintTextToAll("Team reinforcements inbound in %d", nSecond);
-		//PrintHintText(client, "Team reinforcements inbound in %d", nSecond);
+		//PrintHintTextToAll("Team reinforcements inbound in %d", nSecond);
+		PrintHintText(client, "Team reinforcements inbound in %d", nSecond);
 		nSecond--;
 	}
  
@@ -269,11 +285,7 @@ public Action Timer_RespawnPlayer(Handle timer, any client)
 
 public CreateRespawnPlayerTimer(client)
 {
-	new Float:fRandom = GetRandomFloat(0.0, 1.0);
-	if(fRandom >= 0.5)
-	{
-		CreateTimer(0.0, RespawnPlayer, client);
-	}
+	CreateTimer(0.0, RespawnPlayer, client);
 }
 
 public Action:RespawnPlayer(Handle:Timer, any:client)
