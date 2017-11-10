@@ -9,25 +9,6 @@ public Plugin:myinfo = {
     version = "1.0.4",
 };
 
-new const String:GrenadeName[][] =
-{
-	"grenade_m67",
-	"grenade_f1",
-	"grenade_gp25_he"
-};
-
-new const String:GrenadeFireName[][] =
-{
-	"grenade_molotov",
-	"grenade_anm14"
-};
-
-new const String:RocketName[][] =
-{
-	"rocket_at4",
-	"rocket_rpg7"
-};
-
 new const String:GrenadeGasName[] = "grenade_gas";
 
 
@@ -88,27 +69,23 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 		return Plugin_Continue;
 	}
 	
-	for (new count=0; count<3; count++)
+	if(StrEqual(sWeapon, "grenade_m67") || StrEqual(sWeapon, "grenade_f1") || StrEqual(sWeapon, "grenade_gp25_he"))
 	{
-		if(StrEqual(sWeapon, GrenadeName[count]))
-		{
-			damage *= nGrenadeMultiplierAmount;
-			return Plugin_Changed;
-		}
+		damage *= nGrenadeMultiplierAmount;
+		return Plugin_Changed;
 	}
 	
-	for (new count=0; count<2; count++)
+
+	if(StrEqual(sWeapon, "grenade_molotov") || StrEqual(sWeapon, "grenade_anm14"))
 	{
-		if(StrEqual(sWeapon, GrenadeFireName[count]))
-		{
-			damage *= nFireMultiplierAmount;
-			return Plugin_Changed;
-		}
-		else if(StrEqual(sWeapon, RocketName[count]))
-		{
-			damage *= nRocketMultiplierAmount;
-			return Plugin_Changed;
-		}
+		damage *= nFireMultiplierAmount;
+		return Plugin_Changed;
+	}
+	
+	if(StrEqual(sWeapon, "rocket_at4") || StrEqual(sWeapon, "rocket_rpg7"))
+	{
+		damage *= nRocketMultiplierAmount;
+		return Plugin_Changed;
 	}
 	
 	if(StrEqual(sWeapon, GrenadeGasName))
