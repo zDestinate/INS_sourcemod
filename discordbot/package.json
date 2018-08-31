@@ -1,0 +1,15 @@
+{
+  "name": "discordbot",
+  "version": "1.0.0",
+  "description": "discordbot for [INS] server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/main.js"
+  },
+  "author": "Circleus",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^11.4.2",
+    "rcon": "^1.0.3"
+  }
+}
