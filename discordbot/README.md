@@ -5,4 +5,5 @@ To use this, you must install nodejs and npm on your server. You can try and tes
 
 You will need to `npm install` to install the require lib for this discord bot.<br>
 Make sure you edit your main.js file and put in your server IP, port, rcon_password, and your bot token.<br>
-After all that, all you have to do is to run the main.js from the server folder.
+Read through everything and edit it.<br>
+After all that, all you have to do is to run the main.js from the server folder and you will have to invite your bot to your discord server. Bot will show up in your discord server and you will have to give the permission to the bot strictly. Otherwise the bot will send all the messages from all the text channel to in game chat.
