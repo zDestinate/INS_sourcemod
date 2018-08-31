@@ -5,7 +5,7 @@ public Plugin:myinfo = {
     name = "[INS] Flare and VIP",
     description = "Flare respawn and VIP class",
     author = "Neko-",
-    version = "1.0.1",
+    version = "1.0.2",
 };
 
 #define SPECTATOR_TEAM	0
@@ -17,22 +17,26 @@ new Handle:g_hForceRespawn;
 new Handle:g_hGameConfig;
 bool g_nFlareFiredActivated = false;
 new bool:g_nPlayer[MAXPLAYERS+1] = {false, ...};
+new bool:g_bPlayerRespawn[MAXPLAYERS+1] = {true, ...};
 new nShooterID;
 new g_nVIP_ID = 0;
 new g_nRoundStatus = 0;
-new g_nRandomTime = 0;
 new bool:g_bVIP_Alive = false;
 new bool:g_TimerRunning = false;
-int g_nSecond = 0;
 int g_nVIP_Kills = 0;
 int g_nVIP_TotalKills = 0;
 int g_nVIP_TotalKillsTemp;
+int g_nSignaller_ID = 0;
+new m_hMyWeapons;
+int g_nFlareCost = 0;
+int g_nFlareCostCounter = 0;
 
 
 public OnPluginStart() 
 {
 	RegConsoleCmd("vip", Cmd_VIP, "Check more VIP info");
-	
+	RegConsoleCmd("givesupplypoint", Cmd_GiveSupply, "Give the current playing you looking a supply point");
+	RegConsoleCmd("getflare", Cmd_GetFlare, "Exchange supply point for flare");
 	
 	HookEvent("weapon_fire", WeaponFireEvents, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
@@ -42,6 +46,11 @@ public OnPluginStart()
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("player_team", OnPlayerTeam);
+	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
+	
+	AddCommandListener(RespawnPlayerAllowCheckListener, "kill");
+	
+	m_hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons");
 	
 	StartPrepSDKCall(SDKCall_Player);
 	g_hGameConfig = LoadGameConfigFile("insurgency.games");
@@ -58,36 +67,47 @@ public void OnMapEnd() {
 	g_nRoundStatus = 0;
 	g_bVIP_Alive = false;
 	g_TimerRunning = false;
-	g_nSecond = 0;
 	g_nVIP_Kills = 0;
+	g_nSignaller_ID = 0;
+	g_nFlareCost = 0;
+	g_nFlareCostCounter = 0;
 }
 
 public OnClientPostAdminCheck(client)
 {
 	g_nPlayer[client] = false;
+	g_bPlayerRespawn[client] = true;
 }
 
 public OnClientDisconnect(client)
 {
 	g_nPlayer[client] = false;
+	g_bPlayerRespawn[client] = true;
 	if(client == g_nVIP_ID)
 	{
 		g_nVIP_ID = 0;
+	}
+	
+	if(client == g_nSignaller_ID)
+	{
+		g_nSignaller_ID = 0;
 	}
 }
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	g_nRoundStatus = 1;
-	g_nSecond = 0;
 	g_nVIP_Kills = 0;
+	g_nFlareCostCounter = 0;
 }
 
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	g_nRoundStatus = 0;
-	g_nSecond = 0;
 	g_nVIP_Kills = 0;
+	g_bVIP_Alive = false;
+	g_nFlareCost = 0;
+	g_nFlareCostCounter = 0;
 }
 
 public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcast)
@@ -96,8 +116,24 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 	g_bVIP_Alive = false;
 	g_TimerRunning = false;
 	g_nVIP_ID = 0;
-	g_nSecond = 0;
 	g_nVIP_Kills = 0;
+	g_nSignaller_ID = 0;
+	g_nFlareCost = 0;
+	g_nFlareCostCounter = 0;
+}
+
+public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	decl String:strCapper[256];
+	GetEventString(event, "cappers", strCapper, sizeof(strCapper));
+	for (new i = 0 ; i < strlen(strCapper); i++)
+	{
+		new clientCapper = strCapper[i];
+		if(clientCapper == g_nVIP_ID)
+		{
+			CreateTimer(0.0, RewardSupplyPointCapture);
+		}
+	}
 }
 
 public Action:WeaponFireEvents(Event event, const char[] name, bool dontBroadcast)
@@ -172,6 +208,16 @@ public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBr
 		{
 			g_nVIP_ID = 0;
 		}
+		
+		if(StrContains(class_template, "signaller") > -1)
+		{
+			g_nSignaller_ID = client;
+		}
+		
+		if((client == g_nSignaller_ID) && (StrContains(class_template, "signaller") == -1))
+		{
+			g_nSignaller_ID = 0;
+		}
 	}
 }
 
@@ -199,6 +245,7 @@ stock void ReloadPlugin() {
 public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	g_bPlayerRespawn[client] = true;
 	
 	if(!IsFakeClient(client))
 	{
@@ -237,6 +284,201 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	{
 		g_nVIP_Kills++;
 	}
+	
+	decl String:sWeapon[32];
+	GetEventString(event, "weapon", sWeapon, sizeof(sWeapon));
+	if(IsFakeClient(client) && (attacker == g_nSignaller_ID) && (StrEqual(sWeapon, "kabar") || StrEqual(sWeapon, "gurkha")))
+	{
+		float fRandom = GetRandomFloat(0.0, 1.0);
+		
+		if(fRandom <= 0.5)
+		{
+			new newWeapon = GivePlayerItem(client, "weapon_p2a1");
+			new PrimaryAmmoType = GetEntProp(newWeapon, Prop_Data, "m_iPrimaryAmmoType");
+			SetEntProp(client, Prop_Send, "m_iAmmo", 1, _, PrimaryAmmoType);
+			
+			int nTeam = GetClientTeam(client);
+			
+			Handle newEvent = CreateEvent("player_death", true);
+			SetEventInt(newEvent, "attacker", GetClientUserId(client));
+			SetEventInt(newEvent, "attackerteam", nTeam);
+			SetEventString(newEvent, "weapon", "Dropped a flare");
+			SetEventInt(newEvent, "weaponid", -1);
+			SetEventInt(newEvent, "userid", -1);
+			SetEventInt(newEvent, "deathflags", 0);
+			SetEventInt(newEvent, "customkill", 1);
+			FireEvent(newEvent, false);
+		}
+	}
+}
+
+public Action:Cmd_GiveSupply(client, args)
+{
+	if(IsPlayerAlive(client))
+	{
+		int clientTarget = GetClientAimTarget(client, true);
+		
+		if((clientTarget > -1) && (IsPlayerAlive(clientTarget)) && (!IsFakeClient(clientTarget)))
+		{
+			float fDistance = GetDistance(client, clientTarget);
+			decl String:szTargetName[64];
+			GetClientName(clientTarget, szTargetName, sizeof(szTargetName));
+			
+			if((fDistance != 0.000) && (fDistance <= 70.0))
+			{
+				int nCurrentSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
+				int nCurrentTotalSupply = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
+				
+				if(nCurrentSupplyPoint > 0)
+				{
+					ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
+					new nMaxSupply = GetConVarInt(cvar_tokenmax);
+					
+					int nTargetSupplyPoint = GetEntProp(clientTarget, Prop_Send, "m_nAvailableTokens");
+					int nTargetTotalSupply = GetEntProp(clientTarget, Prop_Send, "m_nRecievedTokens");
+					
+					if(nTargetTotalSupply <= nMaxSupply)
+					{
+						SetEntProp(client, Prop_Send, "m_nRecievedTokens", nCurrentTotalSupply - 1);
+						SetEntProp(client, Prop_Send, "m_nAvailableTokens", nCurrentSupplyPoint - 1);
+						PrintHintText(client, "%s received a supply point", szTargetName);
+						
+						decl String:szPlayerName[64];
+						GetClientName(client, szPlayerName, sizeof(szPlayerName));
+						SetEntProp(clientTarget, Prop_Send, "m_nRecievedTokens", nCurrentTotalSupply + 1);
+						SetEntProp(clientTarget, Prop_Send, "m_nAvailableTokens", nTargetSupplyPoint + 1);
+						PrintHintText(clientTarget, "%s gave you a supply point", szPlayerName);
+					}
+					else
+					{
+						PrintHintText(client, "%s can't have anymore supply point", szTargetName);
+					}
+				}
+				else
+				{
+					PrintHintText(client, "You don't have any available supply point");
+				}
+			}
+			else
+			{
+				PrintHintText(client, "%s is too far", szTargetName);
+			}
+		}
+	}
+	
+	return Plugin_Handled;
+}
+
+float GetDistance(client1, client2)
+{
+	new Float:ClientVec1[3];
+	new Float:ClientVec2[3];
+	
+	if((IsClientInGame(client1)) && (IsPlayerAlive(client1)) &&(!IsFakeClient(client1)))
+	{
+		GetEntPropVector(client1, Prop_Send, "m_vecOrigin", ClientVec1);
+	}
+	else
+	{
+		ClientVec1[0] = 0.000;
+	}
+	
+	if((IsClientInGame(client2)) && (IsPlayerAlive(client2)) &&(!IsFakeClient(client2)))
+	{
+		GetEntPropVector(client2, Prop_Send, "m_vecOrigin", ClientVec2);
+	}
+	else
+	{
+		ClientVec2[0] = 0.000;
+	}
+	
+	if((ClientVec1[0] != 0.000) && (ClientVec2[0] != 0.000))
+	{
+		return GetVectorDistance(ClientVec1, ClientVec2);
+	}
+	else
+	{
+		return 0.000;
+	}
+}
+
+public Action:Cmd_GetFlare(client, args)
+{
+	if(g_nFlareCost == 0)
+	{
+		g_nFlareCost = 2;
+	}
+	else if(g_nFlareCost > 5)
+	{
+		g_nFlareCost = 5;
+	}
+	
+	if(IsPlayerAlive(client) && (client == g_nSignaller_ID))
+	{
+		int nCurrentSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
+		int nCurrentTotalSupply = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
+		
+		if(nCurrentSupplyPoint >= g_nFlareCost)
+		{
+			decl String:strWeaponClassName[64];
+
+			//Loop player weapon check if player already have flare
+			for(int i = 0; i < 128; i += 4)
+			{
+				int nWeaponID = GetEntDataEnt2(client, m_hMyWeapons + i);
+
+				if(nWeaponID > 0)
+				{
+					GetEdictClassname(nWeaponID, strWeaponClassName, sizeof(strWeaponClassName));
+					if(StrContains(strWeaponClassName, "weapon_p2a1") > -1)
+					{
+						PrintHintText(client, "You can't have more than 1 flare gun");
+						return Plugin_Handled;
+					}
+				}
+			}
+			
+			int newWeapon = GivePlayerItem(client, "weapon_p2a1");
+			SetEntProp(newWeapon, Prop_Send, "m_iClip1", 1);
+			int PrimaryAmmoType = GetEntProp(newWeapon, Prop_Data, "m_iPrimaryAmmoType");
+			SetEntProp(client, Prop_Send, "m_iAmmo", 0, _, PrimaryAmmoType);
+			
+			//Loop player weapon check if player receive a flare
+			for(int i = 0; i < 128; i += 4)
+			{
+				int nWeaponID = GetEntDataEnt2(client, m_hMyWeapons + i);
+
+				if(nWeaponID > 0)
+				{
+					GetEdictClassname(nWeaponID, strWeaponClassName, sizeof(strWeaponClassName));
+					if(StrContains(strWeaponClassName, "weapon_p2a1") > -1)
+					{
+						SetEntProp(client, Prop_Send, "m_nAvailableTokens", nCurrentSupplyPoint - g_nFlareCost);
+						SetEntProp(client, Prop_Send, "m_nRecievedTokens", nCurrentTotalSupply - g_nFlareCost);
+						break;
+					}
+				}
+			}
+			
+			g_nFlareCostCounter++;
+			
+			if(g_nFlareCostCounter > 2)
+			{
+				g_nFlareCostCounter = 0;
+				g_nFlareCost++;
+			}
+			
+			return Plugin_Handled;
+		}
+		else
+		{
+			PrintHintText(client, "You need %d available supply points", g_nFlareCost);
+		}
+		
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
 }
 
 public Action Timer_RespawnPlayer(Handle timer, any client)
@@ -268,15 +510,15 @@ public Action Timer_RespawnPlayer(Handle timer, any client)
 		}
 		
 		g_nFlareFiredActivated = false;
-		//PrintHintTextToAll("Team reinforcements have arrived!");
-		PrintHintText(client, "Team reinforcements have arrived!");
+		PrintHintTextToAll("Team reinforcements have arrived!");
+		//PrintHintText(client, "Team reinforcements have arrived!");
 		nSecond = 10;
 		return Plugin_Stop;
 	}
 	else
 	{
-		//PrintHintTextToAll("Team reinforcements inbound in %d", nSecond);
-		PrintHintText(client, "Team reinforcements inbound in %d", nSecond);
+		PrintHintTextToAll("Team reinforcements inbound in %d", nSecond);
+		//PrintHintText(client, "Team reinforcements inbound in %d", nSecond);
 		nSecond--;
 	}
  
@@ -294,7 +536,7 @@ public Action:RespawnPlayer(Handle:Timer, any:client)
 	if (!IsClientInGame(client)) return;
 	
 	new currentPlayerTeam = GetClientTeam(client);
-	if((IsValidClient(client)) && (!IsFakeClient(client)) && (!IsPlayerAlive(client)) && (currentPlayerTeam == TEAM_SECURITY) && (IsClientConnected(client)) && (client != nShooterID) && (g_nPlayer[client]))
+	if((IsValidClient(client)) && (!IsFakeClient(client)) && (!IsPlayerAlive(client)) && (currentPlayerTeam == TEAM_SECURITY) && (IsClientConnected(client)) && (client != nShooterID) && (g_nPlayer[client]) && (g_bPlayerRespawn[client]))
 	{
 		SDKCall(g_hForceRespawn, client);
 	}
@@ -302,6 +544,11 @@ public Action:RespawnPlayer(Handle:Timer, any:client)
 	{
 		return;
 	}
+}
+
+public Action:RespawnPlayerAllowCheckListener(client, const String:cmd[], argc)
+{
+	g_bPlayerRespawn[client] = false;
 }
 
 public bool:FilterOutPlayer(entity, contentsMask, any:data)
@@ -359,8 +606,6 @@ public Action Timer_Check_VIP(Handle timer)
 	if((g_nVIP_ID == 0) || (nCurrentPlayerTeam != 2))
 	{
 		g_nVIP_TotalKills = 0;
-		g_nRandomTime = 0;
-		g_nSecond = 0;
 		g_nVIP_ID = 0;
 		g_nVIP_Kills = 0;
 		g_TimerRunning = false;
@@ -376,24 +621,11 @@ public Action Timer_Check_VIP(Handle timer)
 	
 	if(g_bVIP_Alive == true)
 	{
-		g_nSecond++;
-		
 		//PrintToChat(g_nVIP_ID, "Your survival time is %i", nSecond);
-		if(g_nRandomTime <= 0)
-		{
-			g_nRandomTime = GetRandomInt(180, 330);
-		}
 		
 		if(g_nVIP_TotalKills <= 0)
 		{
 			g_nVIP_TotalKills = GetRandomInt(8, 12);
-		}
-		
-		if(g_nSecond >= g_nRandomTime)
-		{
-			g_nRandomTime = 0;
-			g_nSecond = 0;
-			CreateTimer(0.0, RewardSupplyPoint);
 		}
 		
 		if(g_nVIP_Kills >= g_nVIP_TotalKills)
@@ -406,8 +638,6 @@ public Action Timer_Check_VIP(Handle timer)
 	}
 	else if(g_bVIP_Alive == false)
 	{
-		g_nRandomTime = 0;
-		g_nSecond = 0;
 		//CreateTimer(0.0, RemoveSupplyPoint);
 		g_TimerRunning = false;
 		g_nVIP_Kills = 0;
@@ -497,6 +727,37 @@ public Action:RewardSupplyPoint(Handle:Timer)
 	return;
 }
 
+public Action:RewardSupplyPointCapture(Handle:Timer)
+{
+	ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
+	new nMaxSupply = GetConVarInt(cvar_tokenmax);
+	
+	for(new client = 1; client <= MaxClients; client++)
+	{
+		//new nCurrentPlayerTeam = GetClientTeam(client);
+		if((IsValidClient(client)) && (IsClientConnected(client)) && (!IsFakeClient(client)))
+		{
+			int nSupplyPoint = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
+			int nAvailableSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
+			
+			if(nSupplyPoint <= nMaxSupply)
+			{
+				//new nRandomPoint = GetRandomInt(1, 2);
+				new nRandomPoint = 1;
+				nSupplyPoint += nRandomPoint;
+				nAvailableSupplyPoint += nRandomPoint;
+				PrintHintText(client, "VIP has captured a point\nYou have received %i supply point as reward", nRandomPoint);
+			}
+
+			//Set client nSupplyPoint
+			SetEntProp(client, Prop_Send, "m_nRecievedTokens",nSupplyPoint);
+			SetEntProp(client, Prop_Send, "m_nAvailableTokens", nAvailableSupplyPoint);
+		}
+	}
+	
+	return;
+}
+
 public Action:RewardSupplyPointKills(Handle:Timer)
 {
 	ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
@@ -532,11 +793,11 @@ public Action:Cmd_VIP(client, args)
 	int nPlayerHealth = GetClientHealth(client);
 	if((client == g_nVIP_ID) && (nPlayerHealth > 0))
 	{
-		PrintHintText(client, "Survive %i/%i seconds or %i/%i kills without dying\nbefore your teammates get supply point reward", g_nSecond, g_nRandomTime, g_nVIP_Kills, g_nVIP_TotalKills);
+		PrintHintText(client, "%i/%i kills without dying\nbefore your teammates get supply point reward", g_nVIP_Kills, g_nVIP_TotalKills);
 	}
 	else if((g_nVIP_ID != 0) && g_bVIP_Alive && (nPlayerHealth > 0))
 	{
-		PrintHintText(client, "VIP need to survive %i/%i seconds or %i/%i kills without dying", g_nSecond, g_nRandomTime, g_nVIP_Kills, g_nVIP_TotalKills);
+		PrintHintText(client, "VIP need %i/%i kills without dying", g_nVIP_Kills, g_nVIP_TotalKills);
 	}
 	else if((g_nVIP_ID != 0) && (!g_bVIP_Alive) && (client != g_nVIP_ID) && (nPlayerHealth > 0))
 	{
