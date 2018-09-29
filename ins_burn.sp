@@ -94,7 +94,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		if(!IsValidEdict(ent))
 		{
 			//DisplayInstructorHint(client, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
-			IgniteEntity(client, 8.0);
+			IgniteEntity(client, 7.0);
 		}
 	}
 	
@@ -158,7 +158,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 				if(fDistance <= 95.0)
 				{
 					//DisplayInstructorHint(nPlayerTarget, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
-					IgniteEntity(nPlayerTarget, 8.0);
+					IgniteEntity(nPlayerTarget, 7.0);
 				}
 			}
 		}
