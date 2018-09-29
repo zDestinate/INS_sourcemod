@@ -1,5 +1,6 @@
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 
 public Plugin:myinfo = {
     name = "[INS] Flare and VIP",
@@ -12,6 +13,9 @@ public Plugin:myinfo = {
 #define TEAM_SPEC 		1
 #define TEAM_SECURITY	2
 #define TEAM_INSURGENTS	3
+
+#define MAXENTITIES 2048
+new g_nGlowingEntity[MAXENTITIES+1] = {-1, ...}
 
 new Handle:g_hForceRespawn;
 new Handle:g_hGameConfig;
@@ -44,7 +48,7 @@ public OnPluginStart()
 	HookEvent("game_end", Event_GameEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_team", OnPlayerTeam);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
 	
@@ -91,6 +95,36 @@ public OnClientDisconnect(client)
 	if(client == g_nSignaller_ID)
 	{
 		g_nSignaller_ID = 0;
+	}
+}
+
+public OnClientPutInServer(client) 
+{
+	if(!IsFakeClient(client))
+	{
+		SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip);
+	}
+	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
+}
+
+public Action:OnWeaponEquip(client, weapon)
+{
+	if((g_nGlowingEntity[weapon] != -1) && (IsValidEdict(g_nGlowingEntity[weapon])))
+	{
+		//RemoveEdict(g_nGlowingEntity[weapon]);
+		AcceptEntityInput(g_nGlowingEntity[weapon], "kill");
+		g_nGlowingEntity[weapon] = -1;
+	}
+}
+
+public Action:OnWeaponDrop(client, weapon)
+{
+	decl String:UserWeaponClass[64];
+	GetEdictClassname(weapon, UserWeaponClass, sizeof(UserWeaponClass));
+	
+	if(IsValidEntity(weapon) && (StrEqual(UserWeaponClass, "weapon_p2a1")))
+	{
+		AddGlow(weapon);
 	}
 }
 
@@ -287,6 +321,32 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	
 	decl String:sWeapon[32];
 	GetEventString(event, "weapon", sWeapon, sizeof(sWeapon));
+	
+	if(IsValidClient(client) && IsFakeClient(client))
+	{
+		float fRandom = GetRandomFloat(0.0, 1.0);
+		
+		if(fRandom <= 0.011)
+		{
+			new newWeapon = GivePlayerItem(client, "weapon_p2a1");
+			new PrimaryAmmoType = GetEntProp(newWeapon, Prop_Data, "m_iPrimaryAmmoType");
+			SetEntProp(client, Prop_Send, "m_iAmmo", 1, _, PrimaryAmmoType);
+			
+			int nTeam = GetClientTeam(client);
+			
+			Handle newEvent = CreateEvent("player_death", true);
+			SetEventInt(newEvent, "attacker", GetClientUserId(client));
+			SetEventInt(newEvent, "attackerteam", nTeam);
+			SetEventString(newEvent, "weapon", "Dropped a flare");
+			SetEventInt(newEvent, "weaponid", -1);
+			SetEventInt(newEvent, "userid", -1);
+			SetEventInt(newEvent, "deathflags", 0);
+			SetEventInt(newEvent, "customkill", 1);
+			FireEvent(newEvent, false);
+		}
+	}
+	
+	/*
 	if(IsFakeClient(client) && (attacker == g_nSignaller_ID) && (StrEqual(sWeapon, "kabar") || StrEqual(sWeapon, "gurkha")))
 	{
 		float fRandom = GetRandomFloat(0.0, 1.0);
@@ -310,6 +370,9 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			FireEvent(newEvent, false);
 		}
 	}
+	*/
+	
+	return Plugin_Continue;
 }
 
 public Action:Cmd_GiveSupply(client, args)
@@ -808,6 +871,39 @@ public Action:Cmd_VIP(client, args)
 		PrintHintText(client, "No VIP available");
 	}
 	return Plugin_Handled;
+}
+
+public AddGlow(ent)
+{
+	decl String:m_ModelName[PLATFORM_MAX_PATH];
+	GetEntPropString(ent, Prop_Data, "m_ModelName", m_ModelName, sizeof(m_ModelName));
+	
+	int glow = CreateEntityByName("prop_dynamic_override");
+	
+	float fPos[3];
+	GetEntPropVector(ent, Prop_Send, "m_vecOrigin", fPos);
+	float fAngles[3];
+	GetEntPropVector(ent, Prop_Send, "m_angRotation", fAngles);
+	
+	DispatchKeyValue(glow, "model", m_ModelName);
+	DispatchKeyValue(glow, "disablereceiveshadows", "1");
+	DispatchKeyValue(glow, "disableshadows", "1");
+	DispatchKeyValue(glow, "solid", "0");
+	DispatchKeyValue(glow, "spawnflags", "256");
+	
+	DispatchSpawn(glow);
+	TeleportEntity(glow, fPos, fAngles, NULL_VECTOR);
+	
+	SetEntProp(glow, Prop_Send, "m_CollisionGroup", 11);
+	SetEntProp(glow, Prop_Send, "m_bShouldGlow", true);
+	//SetEntProp(glow, Prop_Send, "m_nGlowStyle", 1);
+	SetEntPropFloat(glow, Prop_Send, "m_flGlowMaxDist", 10000000.0);
+	
+	SetVariantColor({244, 66, 226, 255});
+	AcceptEntityInput(glow, "SetGlowColor");
+	SetVariantString("!activator");
+	AcceptEntityInput(glow, "SetParent", ent);
+	g_nGlowingEntity[ent] = glow;
 }
 
 bool:IsValidClient(client) 
