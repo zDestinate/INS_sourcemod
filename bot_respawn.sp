@@ -67,10 +67,13 @@ new g_nVIP_counter = 0;
 new g_iPlayerEquipGear;
 
 //Recon Class
-new ReconSelfGearID = 34;
-new ReconTeamGearID = 35;
+new ReconSelfGearID = 35;
+new ReconTeamGearID = 36;
 ReconClient1 = 0;
 ReconClient2 = 0;
+
+//CounterAttack alter
+bool g_bNormalCounterAttack = false;
 
 //Addition bot reaction
 /*
@@ -125,7 +128,7 @@ new
 	Float:g_fDeadPosition[MAXPLAYERS+1][3],
 	Float:g_fRagdollPosition[MAXPLAYERS+1][3],
 	Float:g_vecOrigin[MAXPLAYERS+1][3],
-	g_iPlayerBGroups[MAXPLAYERS+1],
+	//g_iPlayerBGroups[MAXPLAYERS+1],
 	Float:g_spawnFrandom[MAXPLAYERS+1],
 	Float:g_fRespawnPosition[3];
 
@@ -510,13 +513,13 @@ public OnPluginStart()
 	sm_revive_enabled = CreateConVar("sm_revive_enabled", "0", "Reviving enabled from medics?  This creates revivable ragdoll after death; 0 - disabled, 1 - enabled");
 	// Nav Mesh Botspawn specific START
 	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "1", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1)", FCVAR_NOTIFY);
-	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "1700.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY);
+	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "1600.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY);
 	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "500.0", "Min distance from players to spawn", FCVAR_NOTIFY);
 	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "4000.0", "Max distance from players to spawn", FCVAR_NOTIFY);
 	cvarCanSeeVectorMultiplier = CreateConVar("sm_botpawns_can_see_vect_mult", "1.5", "Divide this with sm_botspawns_max_player_distance to get CanSeeVector allowed distance for bot spawning in LOS", FCVAR_NOTIFY);
 	cvarMinObjectiveDistance = CreateConVar("sm_botspawns_min_objective_distance", "1", "Min distance from next objective to spawn", FCVAR_NOTIFY);
 	cvarMaxObjectiveDistance = CreateConVar("sm_botspawns_max_objective_distance", "240", "Max distance from next objective to spawn", FCVAR_NOTIFY);
-	cvarMaxObjectiveDistanceNav = CreateConVar("sm_botspawns_max_objective_distance_nav", "3000", "Max distance from next objective to spawn", FCVAR_NOTIFY);
+	cvarMaxObjectiveDistanceNav = CreateConVar("sm_botspawns_max_objective_distance_nav", "2500", "Max distance from next objective to spawn", FCVAR_NOTIFY);
 
 	cvarSpawnAttackDelay = CreateConVar("sm_botspawns_spawn_attack_delay", "0", "Delay in seconds for spawning bots to wait before firing.", FCVAR_NOTIFY);
 
@@ -878,7 +881,7 @@ public CvarChange(Handle:cvar, const String:oldvalue[], const String:newvalue[])
 }
 
 // Update cvars
-void UpdateRespawnCvars()
+void UpdateRespawnCvars(int nSecAlive = 0)
 {
 
 	//Counter attack chance based on number of points
@@ -1035,7 +1038,18 @@ void UpdateRespawnCvars()
 	{
 		// Set base value of remaining lives for team insurgent
 		g_iRespawn_lives_team_ins = -1;
-		switch (GetTeamSecCount())
+		
+		int nInsCount;
+		if(nSecAlive != 0)
+		{
+			nInsCount = nSecAlive;
+		}
+		else
+		{
+			nInsCount = GetTeamSecCount();
+		}
+		
+		switch(nInsCount)
 		{
 			case 0: g_iRespawn_lives_team_ins = GetConVarInt(sm_respawn_lives_team_ins_player_count_01);
 			case 1: g_iRespawn_lives_team_ins = GetConVarInt(sm_respawn_lives_team_ins_player_count_01);
@@ -1247,13 +1261,13 @@ public Action:ReconInfo(client, args)
 	if(ReconClient1 > 0)
 	{
 		//Get player recon gear
-		nReconGearItemID1 = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 4));
+		nReconGearItemID1 = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 5));
 	}
 	
 	if(ReconClient2 > 0)
 	{
 		//Get player recon gear
-		nReconGearItemID2 = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 4));
+		nReconGearItemID2 = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 5));
 	}
 	
 	PrintToChat(client, "Recon1: %i\nRecon1_Gear: %i\nRecon2: %i\nRecon2_Gear: %i\n", ReconClient1, nReconGearItemID1, ReconClient2, nReconGearItemID2);
@@ -1402,8 +1416,12 @@ public Action:Timer_MapStart(Handle:Timer)
 	// Monitor ammo resupply
 	CreateTimer(1.0, Timer_AmmoResupply, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
+	
+	//==============================
 	//--- ADD EXTRA
-	/*
+	//==============================
+	
+	
 	g_hHidingSpots = NavMesh_GetHidingSpots();//try NavMesh_GetAreas(); or //NavMesh_GetPlaces(); // or NavMesh_GetEncounterPaths();
 	if (g_hHidingSpots != INVALID_HANDLE)
 		g_iHidingSpotCount = GetArraySize(g_hHidingSpots);
@@ -1452,7 +1470,7 @@ public Action:Timer_MapStart(Handle:Timer)
 		////PrintToServer("[BOTSPAWNS] Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
 		//LogMessage("Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
 	}
-	*/
+	
 	//---
 	
 	// Static enemy check timer
@@ -1655,7 +1673,7 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 		new userHealth = GetClientHealth(ReconClient1);
 		
 		//Get player recon gear
-		new nGearItemID = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 4));
+		new nGearItemID = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 5));
 		
 		if((userHealth > 0) && (nGearItemID == ReconSelfGearID))
 		{
@@ -1669,7 +1687,7 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 		new userHealth = GetClientHealth(ReconClient2);
 		
 		//Get player recon gear
-		new nGearItemID = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 4));
+		new nGearItemID = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 5));
 		
 		if((userHealth > 0) && (nGearItemID == ReconSelfGearID))
 		{
@@ -1680,8 +1698,8 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 	if((ReconClient1 > 0 && IsClientInGame(ReconClient1) && (!IsFakeClient(ReconClient1))) && (ReconClient2 > 0 && IsClientInGame(ReconClient2) && (!IsFakeClient(ReconClient2))))
 	{
 		//Get player recon gear
-		new nReconGearItemID1 = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 4));
-		new nReconGearItemID2 = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 4));
+		new nReconGearItemID1 = GetEntData(ReconClient1, g_iPlayerEquipGear + (4 * 5));
+		new nReconGearItemID2 = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 5));
 		
 		if((nReconGearItemID1 == ReconTeamGearID) && (nReconGearItemID2 == ReconTeamGearID))
 		{
@@ -2705,7 +2723,7 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		//InsLog(DEBUG, "Event_Spawn iCanSpawn %d", iCanSpawn);
 		//if (!iCanSpawn || (Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawnCounter_Perc) || (!Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawn_Perc && acp > 1)) 
 		//if (!iCanSpawn && (!Ins_InCounterAttack() || (acp+1) == ncp))
-		if (!iCanSpawn && (!Ins_InCounterAttack() || (acp+1) == ncp))
+		if (!iCanSpawn && (!Ins_InCounterAttack()))
 		{
 			TeleportClient(client);
 			//TeleportClient(client);
@@ -3370,6 +3388,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
+			g_bNormalCounterAttack = false;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
 			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
 		}
@@ -3399,6 +3418,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
+			g_bNormalCounterAttack = false;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
 			//PrintToServer("[RESPAWN] Counter-attack timer started. (Last counter-attack)");
 		}
@@ -3603,6 +3623,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
+			g_bNormalCounterAttack = false;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
 			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
 		}
@@ -3632,6 +3653,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
+			g_bNormalCounterAttack = false;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
 			//PrintToServer("[RESPAWN] Counter-attack timer started. (Last counter-attack)");
 		}
@@ -3775,6 +3797,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		
 		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
+		g_bNormalCounterAttack = false;
 		
 		//Restore aggressive
 		//Addition
@@ -3806,6 +3829,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		
 		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
+		g_bNormalCounterAttack = false;
 		
 		new Handle:cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
@@ -3895,7 +3919,24 @@ void ResetInsurgencyLives()
 	if (!g_iCvar_respawn_enable) return;
 	
 	// Update cvars
-	UpdateRespawnCvars();
+	if(g_bNormalCounterAttack)
+	{
+		// Check alive player
+		new nAlivePlayer;
+		for (new i = 1; i <= MaxClients; i++)
+		{
+			if (IsClientConnected(i) && IsClientInGame(i) && IsPlayerAlive(i) && !IsFakeClient(i))
+			{
+				nAlivePlayer++;
+			}
+		}
+		
+		UpdateRespawnCvars(nAlivePlayer);
+	}
+	else
+	{
+		UpdateRespawnCvars();
+	}
 	
 	// Individual lives
 	if (g_iCvar_respawn_type_team_ins == 1)
@@ -4055,22 +4096,22 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	//VIP died
-	new nCurrentPlayerTeam = GetClientTeam(client);
+	//new nCurrentPlayerTeam = GetClientTeam(client);
 	if((client) && (client == g_nVIP_ID) && IsClientInGame(client) && IsClientConnected(client) && (!IsFakeClient(client)) && (g_iRoundStatus != 0))
 	{
 		new fRandomIntVIP = GetRandomInt(0, 100);
 		if((g_isCheckpoint == 1) && (fRandomIntVIP < 50))
 		{
 			g_nVIP_counter = 1;
-			//PrintHintTextToAll("VIP has died\nEnemies will now counter attack next objective!");
-			PrintHintText(client, "Enemies will now counter attack next objective!");
+			PrintHintTextToAll("VIP has died\nEnemies will now counter attack next objective!");
+			//PrintHintText(client, "Enemies will now counter attack next objective!");
 		}
 		else
 		{
 			g_nVIP_counter = 0;
 			int nTotalSecPlayers = GetTeamSecCount();
 			
-			g_iRemaining_lives_team_ins += (nTotalSecPlayers * 2);
+			g_iRemaining_lives_team_ins += 60;
 			
 			for(new nClient = 1; nClient <= MaxClients; nClient++)
 			{
@@ -4090,17 +4131,17 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins;
 			}
 			
-			//PrintHintTextToAll("VIP has died\nEnemy reinforcements inbound!");
-			PrintHintText(client, "Enemy reinforcements inbound!");
+			PrintHintTextToAll("VIP has died\nEnemy reinforcements inbound!");
+			//PrintHintText(client, "Enemy reinforcements inbound!");
 		}
 	}
 	
-    g_iPlayerBGroups[client] = GetEntProp(client, Prop_Send, "m_nBody");
+    //g_iPlayerBGroups[client] = GetEntProp(client, Prop_Send, "m_nBody");
 
 //    PrintToServer("BodyGroups: %d", g_iPlayerBGroups[client]);
 
 	// Check client valid
-	if (!IsClientInGame(client)) return Plugin_Continue;
+	if ((!IsValidClient(client)) || (!IsClientInGame(client))) return Plugin_Continue;
 	
 	//PrintToServer("[PLAYERDEATH] Client %N has %d lives remaining", client, g_iSpawnTokens[client]);
 	
@@ -4401,7 +4442,8 @@ public Action:RespawnBot(Handle:Timer, any:client)
 	if (g_iCvar_SpawnMode == 1)
 	{
 		CreateTimer(0.0, RespawnBotPost, client);
-		//RespawnBotPost(INVALID_HANDLE, client);
+		
+		RespawnBotPost(INVALID_HANDLE, client);
 	}
 }
 
