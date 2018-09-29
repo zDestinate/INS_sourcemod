@@ -13,7 +13,7 @@ enum Teams
 };
 
 new g_nFireResistance_ID = 8;
-new g_nSunglasses_ID = 30;
+new g_nSunglasses_ID = 31;
 new g_nDoubleJump_ID = 26;
 new g_nSpeedBoost_ID = 27;
 new g_nGasMask_ID = 25;
@@ -89,7 +89,7 @@ public OnMapEnd()
 	g_nClientRunnerID = 0;
 }
 
-public OnClientPostAdminCheck(client) 
+public OnClientPutInServer(client) 
 {
 	//If not fake client
     if(!IsFakeClient(client))
@@ -133,8 +133,13 @@ public Action:Event_OnFlashPlayerPre(Handle:event, const String:name[], bool:don
 	return Plugin_Continue;
 }
 
-public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype) 
+public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &ammotype, hitbox, hitgroup) 
 {
+	if(!IsValidClient(attacker) || !IsValidClient(victim))
+	{
+		return Plugin_Continue;
+	}
+	
 	//Get player armor ID
 	new nArmorItemID = GetEntData(victim, g_iPlayerEquipGear);
 	
@@ -172,6 +177,43 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 		return Plugin_Changed;
 	}
 	
+	if(GetClientTeam(victim) == GetClientTeam(attacker))
+	{
+		return Plugin_Continue;
+	}
+	
+	//Sniper
+	if(StrEqual(sWeapon, "weapon_sks") && ((nHelmetItemID != 23) && (nHelmetItemID != 24)))
+	{
+		damage *= 100;
+		return Plugin_Changed;
+	}
+	else if(StrEqual(sWeapon, "weapon_sks") && (nHelmetItemID == 23))
+	{
+		damage = 65.0;
+		return Plugin_Changed;
+	}
+	else if(StrEqual(sWeapon, "weapon_sks") && (nHelmetItemID == 24))
+	{
+		damage = 33.0;
+		return Plugin_Changed;
+	}
+	
+	//Helmet
+	if(hitgroup == 1)
+	{
+		if(nHelmetItemID == 23)
+		{
+			damage = 65.0;
+			return Plugin_Changed;
+		}
+		else if(nHelmetItemID == 24)
+		{
+			damage = 33.0;
+			return Plugin_Changed;
+		}
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -184,7 +226,7 @@ public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:don
 	{	
 		//Speed boost
 		//Get player misc item (5th offset with a DWORD(4 bytes))
-		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5));
+		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
 		
 		//If item is speed boost ID
 		if((nPerkSpeedBoostItemID == g_nSpeedBoost_ID) || (client == g_nClientRunnerID))
@@ -210,7 +252,7 @@ public Action:ResupplyListener(client, const String:cmd[], argc)
 	{	
 		//Speed boost
 		//Get player misc item (5th offset with a DWORD(4 bytes))
-		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5));
+		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
 		
 		//If item is speed boost ID
 		if(nPerkSpeedBoostItemID == g_nSpeedBoost_ID)
@@ -302,7 +344,7 @@ stock Landed(const any:client) {
 stock ReJump(const any:client) {
 	//Double jump check with item
 	//Get player misc item (5th offset with a DWORD(4 bytes))
-	new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 5))
+	new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4))
 	
 	//If item is 26 then its double jump perk. Allow player to perform a double jump
 	if(nPerkItemID == g_nDoubleJump_ID)
