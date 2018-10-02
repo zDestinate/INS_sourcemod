@@ -202,7 +202,7 @@ public Action:Vote_Theater(client,args)
 	}
 	else
 	{
-		PrintToChat(client, "Invalid theater");
+		PrintToChat(client, "[DTheater] Invalid theater. Please use normal, ins, nospy, or sniper");
 	}
 	
 	return Plugin_Handled;
