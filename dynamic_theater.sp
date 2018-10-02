@@ -29,6 +29,9 @@ public OnPluginStart()
 	RegConsoleCmd("votetheater", Vote_Theater, "Vote theater for next map");
 	RegConsoleCmd("yes", Vote_Yes, "Vote yes for next map theater change");
 	RegConsoleCmd("no", Vote_No, "Vote no for next map theater change");
+	
+	//Admin command
+	//Admin can set theater right away
 	RegAdminCmd("settheater", SetDynamicTheater, ADMFLAG_KICK, "Set dynamic theater type");
 } 
 
