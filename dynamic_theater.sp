@@ -1,7 +1,7 @@
 //----------------------------------------------------
 //	Dynamic theater for [INS]
 //	Put "exec theatertype.cfg" in bottom of server.cfg
-//	This plugin will edit the theatertype.cfg to run the right theater file
+//	This plugin will create and edit the theatertype.cfg to run the right theater file
 //	Each time the server load or change map will run server.cfg but with theatertype.cfg execute
 //----------------------------------------------------
 
@@ -15,7 +15,6 @@ bool bVoteStart = false;
 int nVoteYes = 0;
 int nVoteNo = 0;
 new bool:g_bPlayerCanVote[MAXPLAYERS+1] = {true, ...};
-//bool bNeedReload = false;
 
 public Plugin:myinfo = {
     name = "[INS] Dynamic Theater File",
@@ -53,25 +52,21 @@ public Action:SetDynamicTheater(client, args)
 	{
 		DynamicTheater(1);
 		PrintToChatAll("\x0759b0f9[INS]\x01 %s has set starting next map to use sniper theater", NickName);
-		//bNeedReload = true;
 	}
 	else if(StrContains(Message, "nospy") != -1)
 	{
 		DynamicTheater(2);
 		PrintToChatAll("\x0759b0f9[INS]\x01 %s has set starting next map to use no spy theater with no indicator", NickName);
-		//bNeedReload = true;
 	}
 	else if(StrContains(Message, "ins") != -1)
 	{
 		DynamicTheater(3);
 		PrintToChatAll("\x0759b0f9[INS]\x01 %s has set starting next map to use insurgent theater (Play as insurgent)", NickName);
-		//bNeedReload = true;
 	}
 	else
 	{
 		DynamicTheater(0);
 		PrintToChatAll("\x0759b0f9[INS]\x01 %s has set starting next map to use normal theater", NickName);
-		//bNeedReload = true;
 	}
 	return Plugin_Handled;
 }
@@ -98,7 +93,7 @@ public DynamicTheater(nTheaterType)
 {
 	decl String:path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM,path,PLATFORM_MAX_PATH,"../../cfg/theatertype.cfg");
-	new Handle:fileHandle=OpenFile(path,"wb");
+	new Handle:fileHandle=OpenFile(path,"wb+");
 	
 	if(nTheaterType == 1)
 	{
@@ -119,38 +114,6 @@ public DynamicTheater(nTheaterType)
 	}
 	CloseHandle(fileHandle);
 	
-	// ConVar hTheaterOverride = FindConVar("mp_theater_override");
-	// ConVar cvarIndicator = FindConVar("sv_hud_targetindicator");
-	
-	// if(nDynamicTheater == 1)
-	// {
-		// //ServerCommand("mp_theater_override ins_custom_hardcore_sniper");
-		// SetConVarString(hTheaterOverride, "ins_custom_hardcore_sniper");
-	// }
-	// else if(nDynamicTheater == 2)
-	// {
-		// //ServerCommand("mp_theater_override ins_custom_hardcore_nospy");
-		// SetConVarString(hTheaterOverride, "ins_custom_hardcore_nospy");
-		// SetConVarInt(cvarIndicator, 0);
-	// }
-	// else
-	// {
-		// //ServerCommand("mp_theater_override ins_custom_hardcore");
-		// SetConVarString(hTheaterOverride, "ins_custom_hardcore");
-	// }
-	
-	
-	//nDynamicTheater = 0;
-}
-
-public Action ReloadMapCheck(Handle timer)
-{
-	decl String:sGameMode[32];
-	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
-	decl String:sMapName[128];
-	GetCurrentMap(sMapName, sizeof(sMapName));
-	ServerCommand("map %s %s", sMapName, sGameMode);
-	//bNeedReload = false;
 }
 
 public Action:Vote_Theater(client,args)
@@ -214,7 +177,6 @@ public Action Timer_VoteTheater(Handle timer, nTheaterType)
 	{
 		PrintToChatAll("\x0759b0f9[INS]\x01 Vote success! Theater will be change starting next map\nYes: %d\nNo: %d", nVoteYes, nVoteNo);
 		DynamicTheater(nTheaterType);
-		//bNeedReload = true;
 	}
 	else
 	{
