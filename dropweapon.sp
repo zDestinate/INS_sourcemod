@@ -77,8 +77,7 @@ new const String:BlacklistWeaponNames[][] =
 	"weapon_gurkha",
 	"weapon_knife",
 	"weapon_kukri",
-	"weapon_katana",
-	"grenade_gas"
+	"weapon_katana"
 };
 
 new g_iPlayerEquipGear;
@@ -128,7 +127,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	//Get client accessories
 	new nAccessoryItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 3));
 	
-	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 31))
+	if (((((hitgroup == 0) && (damage > 70)) && (health >0)) || (((hitgroup == 4) || (hitgroup == 5)) && (health >0))) && (nAccessoryItemID != 32))
 	{
 		/*
 		for (new count=0; count<=63; count++)
@@ -145,14 +144,14 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 					PrintToServer("Player %N lost gun %s", client, weapon)
 					new weapon_id = GetPlayerWeaponSlot(client, slot)
 					SDKHooks_DropWeapon(client, weapon_id, NULL_VECTOR, NULL_VECTOR)
-					PrintHintText(client, "Wounded to the arm! You lost your weapon!")
+					//PrintHintText(client, "Wounded to the arm! You lost your weapon!")
 				}
 			}
 		}
 		*/
 		
 		//Blacklist gas grenade		
-		for (new count=0; count<6; count++)
+		for (new count=0; count<sizeof(BlacklistWeaponNames); count++)
 		{
 			if (StrEqual(User_Weapon, BlacklistWeaponNames[count]))
 			{
@@ -162,7 +161,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		
 		PrintToServer("Player %N lost gun %s", client, weapon)
 		SDKHooks_DropWeapon(client, CurrentUserWeapon, NULL_VECTOR, NULL_VECTOR);
-		PrintHintText(client, "Wounded to the arm! You lost your weapon!")
+		//PrintHintText(client, "Wounded to the arm! You lost your weapon!")
 	}
 	
 	return Plugin_Continue;
