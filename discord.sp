@@ -98,6 +98,11 @@ void EscapeStringAllowAt(char[] string, int maxlen)
 
 public Action:Say_Event(client, const String:cmd[], argc)
 {
+	if(!IsValidClient(client))
+	{
+		return Plugin_Continue;
+	}
+	
 	decl String:strMsg[255];
 	GetCmdArgString(strMsg, 255);
 	StripQuotes(strMsg);
@@ -115,6 +120,11 @@ public Action:Say_Event(client, const String:cmd[], argc)
 
 public Action:SayTeam_Event(client, const String:cmd[], argc)
 {
+	if(!IsValidClient(client))
+	{
+		return Plugin_Continue;
+	}
+	
 	decl String:strMsg[255];
 	GetCmdArgString(strMsg, 255);
 	StripQuotes(strMsg);
@@ -206,4 +216,12 @@ public Action:Cmd_CallAdmin(client, args)
 	
 	PrintToChat(client, "\x0759b0f9[INS] \x01Please wait for the next available admin to reach you...");
 	return Plugin_Handled;
+}
+
+bool:IsValidClient(client) 
+{
+	if ( !( 1 <= client <= MaxClients ) || !IsClientInGame(client) ) 
+		return false; 
+	
+	return true; 
 }
