@@ -150,6 +150,15 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 					continue;
 				}
 				
+				//Get player stance
+				int nStance = GetEntProp(nPlayerTarget, Prop_Send, "m_iCurrentStance");
+				
+				//nStance = 2 (Prone)
+				if(nStance == 2)
+				{
+					continue;
+				}
+				
 				//Already on fire
 				/*
 				int entTarget = GetEntPropEnt(nPlayerTarget, Prop_Data, "m_hEffectEntity");
