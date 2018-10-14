@@ -18,6 +18,7 @@ public Plugin:myinfo = {
 };
 
 int g_iPlayerEquipGear;
+int nArmorFireResistance = 8;
 
 public OnPluginStart()
 {
@@ -27,9 +28,21 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
 }
 
+/*
 public OnMapStart()
 {
 	CreateTimer(1.0, Timer_SpreadBurn,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+}
+*/
+
+public OnGameFrame(){
+	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
+	{
+		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer))
+		{
+			CheckSpreadBurn(nPlayer);
+		}
+	}
 }
 
 public OnClientPutInServer(client)
@@ -78,8 +91,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	
 	//Get player ArmorID
 	int nArmorItemID = GetEntData(client, g_iPlayerEquipGear);
-	//INS server fire resistance armor ID
-	int nArmorFireResistance = 8;
 	
 	//Get weapon name
 	decl String:sWeapon[32];
@@ -90,12 +101,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	//If you have more custom fire weapon then add it in here to have those weapon trigger the burn on players
 	if((nArmorItemID != nArmorFireResistance) && ((StrEqual(sWeapon, "grenade_molotov")) || (StrEqual(sWeapon, "grenade_anm14")) || (StrEqual(sWeapon, "grenade_m203_incid")) || (StrEqual(sWeapon, "grenade_gp25_incid"))))
 	{
-		int ent = GetEntPropEnt(client, Prop_Data, "m_hEffectEntity");
-		if(!IsValidEdict(ent))
-		{
-			//DisplayInstructorHint(client, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
-			IgniteEntity(client, 7.0);
-		}
+		//DisplayInstructorHint(client, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
+		IgniteEntity(client, 7.0);
 	}
 	
 	return Plugin_Continue; 
@@ -119,9 +126,6 @@ public Action:OnTakeDamage(client, &attacker, &inflictor, &Float:damage, &damage
 
 public Action:Timer_SpreadBurn(Handle:Timer)
 {
-	//INS server fire resistance armor ID
-	int nArmorFireResistance = 8;
-	
 	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
 	{
 		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer))
@@ -134,7 +138,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 			
 			for(int nPlayerTarget = 1; nPlayerTarget <= MaxClients; nPlayerTarget++)
 			{
-				if(!IsClientInGame(nPlayerTarget) || !IsPlayerAlive(nPlayerTarget))
+				if(!IsClientInGame(nPlayerTarget) || !IsPlayerAlive(nPlayerTarget) || (nPlayerTarget == nPlayer))
 				{
 					continue;
 				}
@@ -146,6 +150,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 					continue;
 				}
 				
+				//Already on fire
 				/*
 				int entTarget = GetEntPropEnt(nPlayerTarget, Prop_Data, "m_hEffectEntity");
 				if(IsValidEdict(entTarget))
@@ -160,6 +165,46 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 					//DisplayInstructorHint(nPlayerTarget, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
 					IgniteEntity(nPlayerTarget, 7.0);
 				}
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+stock void CheckSpreadBurn(const any:client)
+{
+	int ent = GetEntPropEnt(client, Prop_Data, "m_hEffectEntity");
+	if(IsValidEdict(ent))
+	{
+		for(int nPlayerTarget = 1; nPlayerTarget <= MaxClients; nPlayerTarget++)
+		{
+			if(!IsClientInGame(nPlayerTarget) || !IsPlayerAlive(nPlayerTarget) || (nPlayerTarget == client))
+			{
+				continue;
+			}
+			
+			//Get player ArmorID
+			int nArmorItemID = GetEntData(nPlayerTarget, g_iPlayerEquipGear);
+			if(nArmorItemID == nArmorFireResistance)
+			{
+				continue;
+			}
+			
+			//Already on fire
+			/*
+			int entTarget = GetEntPropEnt(nPlayerTarget, Prop_Data, "m_hEffectEntity");
+			if(IsValidEdict(entTarget))
+			{
+				continue;
+			}
+			*/
+			
+			float fDistance = GetDistance(client, nPlayerTarget);
+			if(fDistance <= 95.0)
+			{
+				//DisplayInstructorHint(nPlayerTarget, 5.0, 0.0, 0.0, true, false, "icon_tip", "icon_tip", "", true, {255, 255, 255}, "You're burning! Drop and roll to remove the fire!"); 
+				IgniteEntity(nPlayerTarget, 7.0);
 			}
 		}
 	}
