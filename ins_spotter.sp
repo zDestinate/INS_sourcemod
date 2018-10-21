@@ -20,63 +20,20 @@ public OnPluginStart()
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &nSubType, &nCmdNum, &nTickCount, &nSeed)  
 {
-	if(IsValidClient(client) && (!IsFakeClient(client)) && (IsPlayerAlive(client)))
+	if((!IsFakeClient(client)) && (IsPlayerAlive(client)))
 	{
 		int nSpotterItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
-		if(nSpotterItemID != g_nSpotterID)
+		if(nSpotterItemID == g_nSpotterID)
 		{
-			return Plugin_Continue;
-		}
-		
-		int nTargetView = getClientViewClient(client);
-		int nTargetAim = GetClientAimTarget(client, true);
-		if((nTargetView == nTargetAim) && (GetClientTeam(client) != GetClientTeam(nTargetAim)) && (IsPlayerAlive(nTargetAim)))
-		{
-			int nValue = GetEntProp(nTargetAim, Prop_Send, "m_bGlowEnabled");
-			if(!nValue)
-			{
-				SetEntProp(nTargetAim, Prop_Send, "m_bGlowEnabled", true);
-				CreateTimer(3.0, Timer_RemoveGlowTarget, nTargetAim);
-			}
-		}
-	}
-	
-	return Plugin_Continue;
-}
-
-/*
-public OnMapStart()
-{
-	//CreateTimer(3.0, Timer_MapStart);
-}
-
-public Action:Timer_MapStart(Handle:Timer)
-{
-	//CreateTimer(1.0, Timer_CheckTargetSpot, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-}
-*/
-
-public Action:Timer_CheckTargetSpot(Handle:Timer)
-{
-	for(int i = 1; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i) && (!IsFakeClient(i)) && (IsPlayerAlive(i)))
-		{
-			int nSpotterItemID = GetEntData(i, g_iPlayerEquipGear + (4 * 4));
-			if(nSpotterItemID != g_nSpotterID)
-			{
-				continue;
-			}
-			
-			int nTargetView = getClientViewClient(i);
-			int nTargetAim = GetClientAimTarget(i, true);
-			if((nTargetView == nTargetAim) && (GetClientTeam(i) != GetClientTeam(nTargetAim)) && (IsPlayerAlive(nTargetAim)))
+			int nTargetView = getClientViewClient(client);
+			int nTargetAim = GetClientAimTarget(client, true);
+			if((nTargetView == nTargetAim) && (GetClientTeam(client) != GetClientTeam(nTargetAim)) && (IsPlayerAlive(nTargetAim)))
 			{
 				int nValue = GetEntProp(nTargetAim, Prop_Send, "m_bGlowEnabled");
 				if(!nValue)
 				{
 					SetEntProp(nTargetAim, Prop_Send, "m_bGlowEnabled", true);
-					CreateTimer(8.0, Timer_RemoveGlowTarget, nTargetAim);
+					CreateTimer(3.0, Timer_RemoveGlowTarget, nTargetAim);
 				}
 			}
 		}
