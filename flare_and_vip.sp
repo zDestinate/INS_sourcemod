@@ -6,7 +6,7 @@ public Plugin:myinfo = {
     name = "[INS] Flare and VIP",
     description = "Flare respawn and VIP class",
     author = "Neko-",
-    version = "1.0.2",
+    version = "1.0.3",
 };
 
 #define SPECTATOR_TEAM	0
@@ -45,10 +45,9 @@ public OnPluginStart()
 	HookEvent("weapon_fire", WeaponFireEvents, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerRespawnPre, EventHookMode_Pre);
-	HookEvent("game_end", Event_GameEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("player_team", OnPlayerTeam);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
 	
@@ -124,7 +123,7 @@ public Action:OnWeaponDrop(client, weapon)
 	
 	if(IsValidEntity(weapon) && (StrEqual(UserWeaponClass, "weapon_p2a1")))
 	{
-		AddGlow(weapon);
+		CreateTimer(0.0, AddGlow, weapon);
 	}
 }
 
@@ -132,28 +131,14 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 {
 	g_nRoundStatus = 1;
 	g_nVIP_Kills = 0;
+	g_nFlareCost = 0;
 	g_nFlareCostCounter = 0;
 }
 
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	g_nRoundStatus = 0;
-	g_nVIP_Kills = 0;
 	g_bVIP_Alive = false;
-	g_nFlareCost = 0;
-	g_nFlareCostCounter = 0;
-}
-
-public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	g_nRoundStatus = 0;
-	g_bVIP_Alive = false;
-	g_TimerRunning = false;
-	g_nVIP_ID = 0;
-	g_nVIP_Kills = 0;
-	g_nSignaller_ID = 0;
-	g_nFlareCost = 0;
-	g_nFlareCostCounter = 0;
 }
 
 public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
@@ -326,12 +311,13 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	{
 		float fRandom = GetRandomFloat(0.0, 1.0);
 		
-		if(fRandom <= 0.011)
+		if(fRandom <= 0.01)
 		{
 			new newWeapon = GivePlayerItem(client, "weapon_p2a1");
 			new PrimaryAmmoType = GetEntProp(newWeapon, Prop_Data, "m_iPrimaryAmmoType");
 			SetEntProp(client, Prop_Send, "m_iAmmo", 1, _, PrimaryAmmoType);
 			
+			/*
 			int nTeam = GetClientTeam(client);
 			
 			Handle newEvent = CreateEvent("player_death", true);
@@ -343,6 +329,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			SetEventInt(newEvent, "deathflags", 0);
 			SetEventInt(newEvent, "customkill", 1);
 			FireEvent(newEvent, false);
+			*/
 		}
 	}
 	
@@ -873,7 +860,7 @@ public Action:Cmd_VIP(client, args)
 	return Plugin_Handled;
 }
 
-public AddGlow(ent)
+public Action AddGlow(Handle timer, any:ent)
 {
 	decl String:m_ModelName[PLATFORM_MAX_PATH];
 	GetEntPropString(ent, Prop_Data, "m_ModelName", m_ModelName, sizeof(m_ModelName));
@@ -897,7 +884,7 @@ public AddGlow(ent)
 	SetEntProp(glow, Prop_Send, "m_CollisionGroup", 11);
 	SetEntProp(glow, Prop_Send, "m_bShouldGlow", true);
 	//SetEntProp(glow, Prop_Send, "m_nGlowStyle", 1);
-	SetEntPropFloat(glow, Prop_Send, "m_flGlowMaxDist", 10000000.0);
+	SetEntPropFloat(glow, Prop_Send, "m_flGlowMaxDist", 1000000.0);
 	
 	SetVariantColor({244, 66, 226, 255});
 	AcceptEntityInput(glow, "SetGlowColor");
