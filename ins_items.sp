@@ -38,7 +38,7 @@ public Plugin:myinfo =
 	name = "[INS] Items",
 	author = "Neko-",
 	description = "Custom item ability for INS",
-	version = "1.0.2"
+	version = "1.0.3"
 };
 
 public OnPluginStart()
@@ -150,23 +150,20 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	decl String:sWeapon[32];
 	GetEdictClassname(inflictor, sWeapon, sizeof(sWeapon));
 	
-	for (new count=0; count<2; count++)
+	//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
+	if((StrEqual(sWeapon, "grenade_anm14") || StrEqual(sWeapon, "grenade_molotov")) && (nArmorItemID == g_nFireResistance_ID))
 	{
-		//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
-		if((StrEqual(sWeapon, "grenade_anm14") || StrEqual(sWeapon, "grenade_molotov")) && (nArmorItemID == g_nFireResistance_ID))
+		//If attack and victim on the same team and player is wearing FR then they take no damage
+		if(GetClientTeam(victim) == GetClientTeam(attacker))
 		{
-			//If attack and victim on the same team and player is wearing FR then they take no damage
-			if(GetClientTeam(victim) == GetClientTeam(attacker))
-			{
-				damage = 0.0;
-				return Plugin_Changed;
-			}
-			//Otherwise player take 1.5 damage (Which is 1.5 damage per sec on fire)
-			else
-			{
-				damage = 1.5;
-				return Plugin_Changed;
-			}
+			damage = 0.0;
+			return Plugin_Changed;
+		}
+		//Otherwise player take 1.5 damage (Which is 1.5 damage per sec on fire)
+		else
+		{
+			damage = 1.5;
+			return Plugin_Changed;
 		}
 	}
 	
@@ -186,16 +183,6 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	if(StrEqual(sWeapon, "weapon_sks") && ((nHelmetItemID != 23) && (nHelmetItemID != 24)))
 	{
 		damage *= 100;
-		return Plugin_Changed;
-	}
-	else if(StrEqual(sWeapon, "weapon_sks") && (nHelmetItemID == 23))
-	{
-		damage = 65.0;
-		return Plugin_Changed;
-	}
-	else if(StrEqual(sWeapon, "weapon_sks") && (nHelmetItemID == 24))
-	{
-		damage = 33.0;
 		return Plugin_Changed;
 	}
 	
