@@ -6,7 +6,7 @@ public Plugin:myinfo = {
     name = "[INS] Flare and VIP",
     description = "Flare respawn and VIP class",
     author = "Neko-",
-    version = "1.0.3",
+    version = "1.0.4",
 };
 
 #define SPECTATOR_TEAM	0
@@ -14,8 +14,8 @@ public Plugin:myinfo = {
 #define TEAM_SECURITY	2
 #define TEAM_INSURGENTS	3
 
-#define MAXENTITIES 2048
-new g_nGlowingEntity[MAXENTITIES+1] = {-1, ...}
+//#define MAXENTITIES 2048
+//new g_nGlowingEntity[MAXENTITIES+1] = {-1, ...}
 
 new Handle:g_hForceRespawn;
 new Handle:g_hGameConfig;
@@ -44,7 +44,7 @@ public OnPluginStart()
 	
 	HookEvent("weapon_fire", WeaponFireEvents, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
-	HookEvent("player_spawn", Event_PlayerRespawnPre, EventHookMode_Pre);
+	HookEvent("player_spawn", Event_PlayerRespawn);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
@@ -108,12 +108,25 @@ public OnClientPutInServer(client)
 
 public Action:OnWeaponEquip(client, weapon)
 {
+	if(IsValidEdict(weapon))
+	{
+		decl String:strValue[64];
+		GetEntPropString(weapon, Prop_Data, "m_iName", strValue, sizeof(strValue));
+		if(StrContains(strValue, "INSAddGlow_") > -1)
+		{
+			decl String:strNewString[256];
+			Format(strNewString, sizeof(strNewString), "%s", strValue[11]);
+			RemoveEdict(StringToInt(strNewString));
+		}
+	}
+	/*
 	if((g_nGlowingEntity[weapon] != -1) && (IsValidEdict(g_nGlowingEntity[weapon])))
 	{
-		//RemoveEdict(g_nGlowingEntity[weapon]);
-		AcceptEntityInput(g_nGlowingEntity[weapon], "kill");
+		RemoveEdict(g_nGlowingEntity[weapon]);
+		//AcceptEntityInput(g_nGlowingEntity[weapon], "kill");
 		g_nGlowingEntity[weapon] = -1;
 	}
+	*/
 }
 
 public Action:OnWeaponDrop(client, weapon)
@@ -123,7 +136,7 @@ public Action:OnWeaponDrop(client, weapon)
 	
 	if(IsValidEntity(weapon) && (StrEqual(UserWeaponClass, "weapon_p2a1")))
 	{
-		CreateTimer(0.0, AddGlow, weapon);
+		CreateTimer(0.1, AddGlow, weapon);
 	}
 }
 
@@ -255,13 +268,7 @@ public Action:OnPlayerTeam(Handle:event, const String:name[], bool:dontBroadcast
 	return Plugin_Continue;
 }
 
-stock void ReloadPlugin() {
-    char filename[PLATFORM_MAX_PATH];
-    GetPluginFilename(INVALID_HANDLE, filename, sizeof(filename));
-    ServerCommand("sm plugins reload %s", filename);
-}  
-
-public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_PlayerRespawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_bPlayerRespawn[client] = true;
@@ -872,6 +879,10 @@ public Action AddGlow(Handle timer, any:ent)
 	float fAngles[3];
 	GetEntPropVector(ent, Prop_Send, "m_angRotation", fAngles);
 	
+	new String:strGlow[64];
+	Format(strGlow, sizeof(strGlow), "INSAddGlow_%d", glow);
+	
+	DispatchKeyValue(ent, "targetname", strGlow);
 	DispatchKeyValue(glow, "model", m_ModelName);
 	DispatchKeyValue(glow, "disablereceiveshadows", "1");
 	DispatchKeyValue(glow, "disableshadows", "1");
@@ -890,7 +901,7 @@ public Action AddGlow(Handle timer, any:ent)
 	AcceptEntityInput(glow, "SetGlowColor");
 	SetVariantString("!activator");
 	AcceptEntityInput(glow, "SetParent", ent);
-	g_nGlowingEntity[ent] = glow;
+	//g_nGlowingEntity[ent] = glow;
 }
 
 bool:IsValidClient(client) 
