@@ -14,7 +14,7 @@ public Plugin:myinfo = {
     name = "[INS] Burn",
     description = "Ignite player when player taking fire damage",
     author = "Neko-",
-    version = "1.0.1",
+    version = "1.0.3",
 };
 
 int g_iPlayerEquipGear;
@@ -131,6 +131,14 @@ stock void CheckSpreadBurn(const any:client)
 			//Get player ArmorID
 			int nArmorItemID = GetEntData(nPlayerTarget, g_iPlayerEquipGear);
 			if(nArmorItemID == nArmorFireResistance)
+			{
+				continue;
+			}
+			
+			//Get player stance
+			int nStance = GetEntProp(nPlayerTarget, Prop_Send, "m_iCurrentStance");
+			//nStance = 2 (Prone)
+			if(nStance == 2)
 			{
 				continue;
 			}
