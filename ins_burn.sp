@@ -130,7 +130,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 {
 	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
 	{
-		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer) && (GetClientTeam(client) != view_as<int>(TEAM_SPECTATORS)))
+		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer) && (GetClientTeam(nPlayer) != view_as<int>(TEAM_SPECTATORS)))
 		{
 			int ent = GetEntPropEnt(nPlayer, Prop_Data, "m_hEffectEntity");
 			if(!IsValidEdict(ent))
