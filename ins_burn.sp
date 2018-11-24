@@ -14,7 +14,15 @@ public Plugin:myinfo = {
     name = "[INS] Burn",
     description = "Ignite player when player taking fire damage",
     author = "Neko-",
-    version = "1.0.3",
+    version = "1.0.4",
+};
+
+enum Teams
+{
+	TEAM_NONE = 0,
+	TEAM_SPECTATORS,
+	TEAM_SECURITY,
+	TEAM_INSURGENTS,
 };
 
 int g_iPlayerEquipGear;
@@ -28,14 +36,9 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
 }
 
-public OnGameFrame(){
-	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
-	{
-		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer))
-		{
-			CheckSpreadBurn(nPlayer);
-		}
-	}
+public OnMapStart()
+{
+	CreateTimer(1.0, Timer_SpreadBurn,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public OnClientPutInServer(client)
@@ -67,7 +70,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	//int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	decl String:weaponCheck[64];
 	GetEventString(event, "weapon", weaponCheck, sizeof(weaponCheck)); 
@@ -75,6 +78,13 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	{
 		//Rename [entityflame] to [Flame] for the top right (Killfeed)
 		SetEventString(event, "weapon", "Flame");
+	}
+	
+	//Remove fire when player dead
+	int ent = GetEntPropEnt(client, Prop_Data, "m_hEffectEntity");
+	if(IsValidEdict(ent))
+	{
+		SetEntPropFloat(ent, Prop_Data, "m_flLifetime", 0.0);  
 	}
 }
 
@@ -116,49 +126,59 @@ public Action:OnTakeDamage(client, &attacker, &inflictor, &Float:damage, &damage
 	return Plugin_Continue;
 }
 
-stock void CheckSpreadBurn(const any:client)
+public Action:Timer_SpreadBurn(Handle:Timer)
 {
-	int ent = GetEntPropEnt(client, Prop_Data, "m_hEffectEntity");
-	if(IsValidEdict(ent))
+	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
 	{
-		for(int nPlayerTarget = 1; nPlayerTarget <= MaxClients; nPlayerTarget++)
+		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer) && (GetClientTeam(client) != view_as<int>(TEAM_SPECTATORS)))
 		{
-			if(!IsClientInGame(nPlayerTarget) || !IsPlayerAlive(nPlayerTarget) || (nPlayerTarget == client))
+			int ent = GetEntPropEnt(nPlayer, Prop_Data, "m_hEffectEntity");
+			if(!IsValidEdict(ent))
 			{
 				continue;
 			}
-			
-			//Get player ArmorID
-			int nArmorItemID = GetEntData(nPlayerTarget, g_iPlayerEquipGear);
-			if(nArmorItemID == nArmorFireResistance)
+				
+			for(int nPlayerTarget = 1; nPlayerTarget <= MaxClients; nPlayerTarget++)
 			{
-				continue;
-			}
-			
-			//Get player stance
-			int nStance = GetEntProp(nPlayerTarget, Prop_Send, "m_iCurrentStance");
-			//nStance = 2 (Prone)
-			if(nStance == 2)
-			{
-				continue;
-			}
-			
-			//Already on fire
-			/*
-			int entTarget = GetEntPropEnt(nPlayerTarget, Prop_Data, "m_hEffectEntity");
-			if(IsValidEdict(entTarget))
-			{
-				continue;
-			}
-			*/
-			
-			float fDistance = GetDistance(client, nPlayerTarget);
-			if(fDistance <= 95.0)
-			{
-				IgniteEntity(nPlayerTarget, 7.0);
+				if(!IsClientInGame(nPlayerTarget) || !IsPlayerAlive(nPlayerTarget) || (nPlayerTarget == nPlayer))
+				{
+					continue;
+				}
+				
+				//Get player ArmorID
+				int nArmorItemID = GetEntData(nPlayerTarget, g_iPlayerEquipGear);
+				if(nArmorItemID == nArmorFireResistance)
+				{
+					continue;
+				}
+				
+				//Get player stance
+				int nStance = GetEntProp(nPlayerTarget, Prop_Send, "m_iCurrentStance");
+				//nStance = 2 (Prone)
+				if(nStance == 2)
+				{
+					continue;
+				}
+				
+				//Already on fire
+				/*
+				int entTarget = GetEntPropEnt(nPlayerTarget, Prop_Data, "m_hEffectEntity");
+				if(IsValidEdict(entTarget))
+				{
+					continue;
+				}
+				*/
+				
+				float fDistance = GetDistance(nPlayer, nPlayerTarget);
+				if(fDistance <= 95.0)
+				{
+					IgniteEntity(nPlayerTarget, 7.0);
+				}
 			}
 		}
 	}
+	
+	return Plugin_Continue
 }
 
 float GetDistance(nClient, nTarget)
