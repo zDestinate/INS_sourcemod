@@ -1,5 +1,6 @@
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 
 new g_iPlayerEquipGear;
 int nClientSupplier = 0;
@@ -8,12 +9,13 @@ int nDefaultResupplyBase;
 int g_nReducePenalty = 0;
 int nBackpackTheaterID1 = 37;
 int nBackpackTheaterID2 = 38;
+bool bSupplyDestroyCacheOnly = false;
 
 public Plugin:myinfo = {
     name = "[INS] Backpack Resupply",
     description = "Resupply handle depend on player backpack",
-    author = "Neko-",
-    version = "1.1.2",
+    author = "Neko- (Linothorax)",
+    version = "1.2.0",
 }
 
 new const String:BlacklistWeaponNames[][] =
@@ -62,8 +64,9 @@ public OnPluginStart()
 	g_iPlayerEquipGear = FindSendPropInfo("CINSPlayer", "m_EquippedGear");
 	
 	HookEvent("player_spawn", Event_PlayerRespawn);
-	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
+	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
+	HookEvent("round_start", Event_RoundStart);
 	
 	RegConsoleCmd("giveresupply", GiveSupply, "Give player magazine");
 	
@@ -103,6 +106,7 @@ public OnClientDisconnect(client)
 	if(client == nClientSupplier)
 	{
 		nClientSupplier = 0;
+		bSupplyDestroyCacheOnly = false;
 		
 		ConVar cvarResupplyPenalty = FindConVar("mp_player_resupply_coop_delay_penalty");
 		ConVar cvarResupplyBase = FindConVar("mp_player_resupply_coop_delay_base");
@@ -131,11 +135,13 @@ public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBr
 		if(StrContains(class_template, "supplier") > -1)
 		{
 			nClientSupplier = client;
+			bSupplyDestroyCacheOnly = true;
 		}
 		
 		if((client == nClientSupplier) && (StrContains(class_template, "supplier") == -1))
 		{
 			nClientSupplier = 0;
+			bSupplyDestroyCacheOnly = false;
 			
 			ConVar cvarResupplyPenalty = FindConVar("mp_player_resupply_coop_delay_penalty");
 			ConVar cvarResupplyBase = FindConVar("mp_player_resupply_coop_delay_base");
@@ -412,6 +418,91 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 			}
 		}
 	}
+}
+
+public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	SearchAllCache();
+}
+
+void SearchAllCache()
+{
+	new ent = -1;
+	new i = 1;
+	while(i == 1)
+	{
+		ent = FindEntityByClassname(ent,"obj_weapon_cache");
+		if(IsValidEntity(ent))
+		{
+			decl String:strEntName[32];
+			GetEntPropString(ent, Prop_Data, "m_iszControlPoint", strEntName, sizeof(strEntName));
+			decl String:targetname[64];
+			GetEntPropString(ent, Prop_Data, "m_iName", targetname, sizeof(targetname));
+			if((strlen(strEntName) > 0) && (strlen(targetname) > 0))
+			{
+				SDKHook(ent, SDKHook_OnTakeDamage, OnCacheTakeDamage);
+				continue;
+			}
+		}
+		i = 0;
+	}
+}
+
+public Action:OnCacheTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
+{
+	//PrintToChatAll("Damage: %f", damage);
+
+	/* Reference LIST this was done using the theater you are using, but maybe damages might be off ~
+	f1 = 181.0 ~
+	molotov = 15.0 ~ per second
+	m26a2 = 180.0 ~
+	m67 = 180.0 ~
+	anm14 = 81.0 ~ init 35.0 per second at end of life 38.0 per second
+	c4 = 262.0 ~
+	ied = 260.0 ~
+	rpg = 218.0 ~
+	law = 291.0 ~
+	at4 = 290.0 ~
+	*/
+
+	//64 blast
+	//2056 fire
+	//PrintToChatAll("damagetype : %i", damagetype);
+	
+	char strCache[64];
+	GetEdictClassname(victim, strCache, sizeof(strCache));
+
+	if(StrEqual(strCache,"obj_weapon_cache"))
+	{
+		if(IsValidEdict(victim) && IsValidClient(attacker))
+		{
+			if(GetEntProp(victim, Prop_Data, "m_lifeState") == 0)
+			{
+				if((bSupplyDestroyCacheOnly) && (nClientSupplier != 0) && (nClientSupplier == attacker) && (IsPlayerAlive(nClientSupplier)))
+				{
+					//Only supplier can destroy cache when supplier present
+					return Plugin_Continue;
+				}
+				else if((!bSupplyDestroyCacheOnly) || (nClientSupplier == 0) || (!IsPlayerAlive(nClientSupplier)))
+				{
+					//Anyone can destroy if supplier not present
+					return Plugin_Continue;
+				}
+				else
+				{
+					PrintHintText(attacker, "Only supplier can destroy the cache");
+					damage = 0.0
+					return Plugin_Handled;
+				}
+			}
+			else
+			{
+				SDKUnhook(victim, SDKHook_OnTakeDamage, OnCacheTakeDamage);
+			}
+		}
+	}
+	
+	return Plugin_Continue;
 }
 
 public Action:GiveSupply(client, args)
