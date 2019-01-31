@@ -481,18 +481,24 @@ public Action:OnCacheTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 				if((bSupplyDestroyCacheOnly) && (nClientSupplier != 0) && (nClientSupplier == attacker) && (IsPlayerAlive(nClientSupplier)))
 				{
 					//Only supplier can destroy cache when supplier present
-					return Plugin_Continue;
+					//return Plugin_Continue;
+					
+					damage = 1000.0
+					return Plugin_Handled;
 				}
+				/*
 				else if((!bSupplyDestroyCacheOnly) || (nClientSupplier == 0) || (!IsPlayerAlive(nClientSupplier)))
 				{
 					//Anyone can destroy if supplier not present
 					return Plugin_Continue;
 				}
+				*/
 				else
 				{
-					PrintHintText(attacker, "Only supplier can destroy the cache");
-					damage = 0.0
-					return Plugin_Handled;
+					//PrintHintText(attacker, "Only supplier can destroy the cache");
+					//damage = 0.0
+					//return Plugin_Handled;
+					return Plugin_Continue;
 				}
 			}
 			else
