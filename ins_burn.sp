@@ -14,7 +14,7 @@ public Plugin:myinfo = {
     name = "[INS] Burn",
     description = "Ignite player when player taking fire damage",
     author = "Neko-",
-    version = "1.0.4",
+    version = "1.0.5",
 };
 
 enum Teams
@@ -116,6 +116,11 @@ public Action:OnTakeDamage(client, &attacker, &inflictor, &Float:damage, &damage
 	decl String:sWeapon[32];
 	GetEdictClassname(inflictor, sWeapon, sizeof(sWeapon));
 	
+	if(GetEntPropEnt(client, Prop_Send, "m_hEffectEntity") <= 0 && StrEqual(sWeapon, "entityflame"))
+	{
+		return Plugin_Handled;
+	}
+	
 	if(StrEqual(sWeapon, "entityflame"))
 	{
 		//Per fire damage (This damage stack up if player have more than 1 fire on them)
@@ -130,7 +135,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 {
 	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
 	{
-		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer) && (GetClientTeam(nPlayer) != view_as<int>(TEAM_SPECTATORS)))
+		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer))
 		{
 			int ent = GetEntPropEnt(nPlayer, Prop_Data, "m_hEffectEntity");
 			if(!IsValidEdict(ent))
