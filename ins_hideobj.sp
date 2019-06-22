@@ -48,7 +48,7 @@ public Action:Listobj(client, args)
 	for(int i = 0; i < ncp; i++)
 	{
 		int nLocked = GetEntData(g_nObjResource, g_nSecurityLockedObj + i, 1);
-		ReplyToCommand(client, "ACP[%d]: %d\n", i, nLocked);
+		ReplyToCommand(client, "ACP[%d]: %d", i, nLocked);
 	}
 	
 	return Plugin_Handled;
