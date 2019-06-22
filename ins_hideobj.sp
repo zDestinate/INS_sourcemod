@@ -22,6 +22,7 @@ public OnPluginStart()
 	g_nTotalObj = FindSendPropInfo("CINSObjectiveResource", "m_iNumControlPoints");
 	g_nSecurityLockedObj = FindSendPropInfo("CINSObjectiveResource", "m_bSecurityLocked");
 	
+	RegAdminCmd("listobj", Listobj, ADMFLAG_KICK, "List all the obj");
 	RegAdminCmd("showobj", Showobj, ADMFLAG_KICK, "Show the next obj");
 	RegAdminCmd("hideobj", Hideobj, ADMFLAG_KICK, "Hide the next obj");
 	
@@ -39,6 +40,18 @@ public OnMapStart()
 	{
 		CreateTimer(5.0, Timer_Check,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
+}
+
+public Action:Listobj(client, args)
+{
+	int ncp = GetEntData(g_nObjResource, g_nTotalObj);
+	for(int i = 0; i < ncp; i++)
+	{
+		int nLocked = GetEntData(g_nObjResource, g_nSecurityLockedObj + i, 1);
+		ReplyToCommand(client, "ACP[%d]: %d\n", i, nLocked);
+	}
+	
+	return Plugin_Handled;
 }
 
 public Action:Hideobj(client, args)
