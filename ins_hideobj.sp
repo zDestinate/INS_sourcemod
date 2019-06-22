@@ -6,13 +6,14 @@ public Plugin:myinfo = {
     name = "[INS] Hide Objective",
     description = "Hide the next objective until all enemies are killed",
     author = "Neko-",
-    version = "1.0.0",
+    version = "1.0.1",
 };
 
 int g_nObjResource;
 int g_nCurrentActiveObj;
 int g_nTotalObj;
 int g_nSecurityLockedObj;
+int g_nInsurgentsLockedObj;
 bool g_bLoaded = false;
 
 public OnPluginStart() 
@@ -21,6 +22,7 @@ public OnPluginStart()
 	g_nCurrentActiveObj = FindSendPropInfo("CINSObjectiveResource", "m_nActivePushPointIndex");
 	g_nTotalObj = FindSendPropInfo("CINSObjectiveResource", "m_iNumControlPoints");
 	g_nSecurityLockedObj = FindSendPropInfo("CINSObjectiveResource", "m_bSecurityLocked");
+	g_nInsurgentsLockedObj = FindSendPropInfo("CINSObjectiveResource", "m_bInsurgentsLocked");
 	
 	RegAdminCmd("listobj", Listobj, ADMFLAG_KICK, "List all the obj");
 	RegAdminCmd("showobj", Showobj, ADMFLAG_KICK, "Show the next obj");
@@ -47,8 +49,9 @@ public Action:Listobj(client, args)
 	int ncp = GetEntData(g_nObjResource, g_nTotalObj);
 	for(int i = 0; i < ncp; i++)
 	{
-		int nLocked = GetEntData(g_nObjResource, g_nSecurityLockedObj + i, 1);
-		ReplyToCommand(client, "ACP[%d]: %d", i, nLocked);
+		int nLockedSec = GetEntData(g_nObjResource, g_nSecurityLockedObj + i, 1);
+		int nLockedIns = GetEntData(g_nObjResource, g_nInsurgentsLockedObj + i, 1);
+		ReplyToCommand(client, "ACP[%d]: sec(%d) ins(%d)", i, nLockedSec, nLockedIns);
 	}
 	
 	return Plugin_Handled;
@@ -97,7 +100,7 @@ public Action:Timer_Check(Handle:Timer)
 			}
 		}
 		
-		if(nTotalInsurgents <= 2)
+		if(nTotalInsurgents <= 4)
 		{
 			SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
 		}
