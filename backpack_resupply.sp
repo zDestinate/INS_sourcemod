@@ -65,6 +65,7 @@ public OnPluginStart()
 	
 	HookEvent("player_spawn", Event_PlayerRespawn);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post);
+	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
 	HookEvent("round_start", Event_RoundStart);
 	
@@ -362,6 +363,56 @@ public Action:ResupplyListener(client, const String:cmd[], argc)
 	return Plugin_Continue;
 }
 
+
+public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	int nAttacker = GetEventInt(event, "attacker");
+	
+	float fRandom = GetRandomFloat(0.0, 1.0);
+	
+	new Handle:cvar;
+	cvar = INVALID_HANDLE;
+	
+	if(nAttacker == nClientSupplier)
+	{
+		new nBackpackID = GetEntData(nClientSupplier, g_iPlayerEquipGear + (4 * 5));
+		if((nBackpackID == nBackpackTheaterID1) || (nBackpackID == nBackpackTheaterID2))
+		{
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+			SetConVarInt(cvar, 1, true, false);
+		}
+		else if(fRandom < 0.5)
+		{
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+			SetConVarInt(cvar, 0, true, false);
+			cvar = FindConVar("mp_checkpoint_counterattack_always");
+			SetConVarInt(cvar, 1, true, false);
+		}
+	}
+	else if(nClientSupplier == 0)
+	{
+		if(fRandom < 0.5)
+		{
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+			SetConVarInt(cvar, 0, true, false);
+			cvar = FindConVar("mp_checkpoint_counterattack_always");
+			SetConVarInt(cvar, 2, true, false);
+		}
+		else
+		{
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+			SetConVarInt(cvar, 1, true, false);
+		}
+	}
+	else
+	{
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+		SetConVarInt(cvar, 0, true, false);
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 1, true, false);
+	}
+}
+
 public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	int nAttacker = GetEventInt(event, "attacker");
@@ -483,22 +534,20 @@ public Action:OnCacheTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 					//Only supplier can destroy cache when supplier present
 					//return Plugin_Continue;
 					
-					damage = 1000.0
-					return Plugin_Handled;
+					return Plugin_Continue;
 				}
-				/*
 				else if((!bSupplyDestroyCacheOnly) || (nClientSupplier == 0) || (!IsPlayerAlive(nClientSupplier)))
 				{
 					//Anyone can destroy if supplier not present
 					return Plugin_Continue;
 				}
-				*/
 				else
 				{
 					//PrintHintText(attacker, "Only supplier can destroy the cache");
-					//damage = 0.0
+					damage *= 0.5
+					return Plugin_Changed
 					//return Plugin_Handled;
-					return Plugin_Continue;
+					//return Plugin_Continue;
 				}
 			}
 			else

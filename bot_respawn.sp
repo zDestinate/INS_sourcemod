@@ -1270,7 +1270,7 @@ public Action:ReconInfo(client, args)
 		nReconGearItemID2 = GetEntData(ReconClient2, g_iPlayerEquipGear + (4 * 5));
 	}
 	
-	PrintToChat(client, "Recon1: %i\nRecon1_Gear: %i\nRecon2: %i\nRecon2_Gear: %i\n", ReconClient1, nReconGearItemID1, ReconClient2, nReconGearItemID2);
+	ReplyToCommand(client, "Recon1: %i\nRecon1_Gear: %i\nRecon2: %i\nRecon2_Gear: %i", ReconClient1, nReconGearItemID1, ReconClient2, nReconGearItemID2);
 	return Plugin_Handled;
 }
 
@@ -1414,13 +1414,13 @@ public Action:Timer_MapStart(Handle:Timer)
 	CreateTimer(1.0, Timer_PlayerStatus,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// Monitor ammo resupply
-	CreateTimer(1.0, Timer_AmmoResupply, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	//CreateTimer(1.0, Timer_AmmoResupply, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	
 	//==============================
 	//--- ADD EXTRA
 	//==============================
-	
+	/*
 	
 	g_hHidingSpots = NavMesh_GetHidingSpots();//try NavMesh_GetAreas(); or //NavMesh_GetPlaces(); // or NavMesh_GetEncounterPaths();
 	if (g_hHidingSpots != INVALID_HANDLE)
@@ -1471,6 +1471,7 @@ public Action:Timer_MapStart(Handle:Timer)
 		//LogMessage("Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
 	}
 	
+	*/
 	//---
 	
 	// Static enemy check timer
@@ -3585,7 +3586,8 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	PrintToServer("Counter Chance = %f", g_respawn_counter_chance);
 	// Occurs counter attack
-	if(((g_nVIP_counter == 1) || (fRandom < g_respawn_counter_chance)) && g_isCheckpoint == 1 && ((acp+1) != ncp))
+	//if(((g_nVIP_counter == 1) || (fRandom < g_respawn_counter_chance)) && g_isCheckpoint == 1 && ((acp+1) != ncp))
+	if((g_nVIP_counter == 1) && g_isCheckpoint == 1 && ((acp+1) != ncp))
 	{
 		cvar = INVALID_HANDLE;
 		if(g_nVIP_counter == 1)
@@ -3659,6 +3661,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		}
 	}
 	// Not occurs counter attack
+	/*
 	else
 	{
 		cvar = INVALID_HANDLE;
@@ -3666,6 +3669,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
 		SetConVarInt(cvar, 1, true, false);
 	}
+	*/
 	
 	//Aditional
 	return Plugin_Continue;
@@ -4141,7 +4145,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 //    PrintToServer("BodyGroups: %d", g_iPlayerBGroups[client]);
 
 	// Check client valid
-	if ((!IsValidClient(client)) || (!IsClientInGame(client))) return Plugin_Continue;
+	if (!IsClientInGame(client)) return Plugin_Continue;
 	
 	//PrintToServer("[PLAYERDEATH] Client %N has %d lives remaining", client, g_iSpawnTokens[client]);
 	
