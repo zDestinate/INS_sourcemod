@@ -3593,10 +3593,12 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		if(g_nVIP_counter == 1)
 		{
 			//PrintToServer("COUNTER YES");
+			/*
 			cvar = FindConVar("mp_checkpoint_counterattack_disable");
 			SetConVarInt(cvar, 0, true, false);
 			cvar = FindConVar("mp_checkpoint_counterattack_always");
 			SetConVarInt(cvar, 1, true, false);
+			*/
 			
 			//Reset VIP counterattack
 			g_nVIP_counter = 0;
@@ -3622,6 +3624,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
+		/*
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
@@ -3629,6 +3632,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
 			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
 		}
+		*/
 	}
 	// If last capture point
 	else if (g_isCheckpoint == 1 && ((acp+1) == ncp))
