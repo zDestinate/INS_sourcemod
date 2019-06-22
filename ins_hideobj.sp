@@ -66,11 +66,12 @@ public Action:Timer_Check(Handle:Timer)
 	int acp = GetEntData(g_nObjResource, g_nCurrentActiveObj);
 	if(acp < 0) return Plugin_Continue;
 	
-	int SecurityLockedObj = GetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 1);
+	//int SecurityLockedObj = GetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 1);
 	
-	if(IsCounterAttack() && (SecurityLockedObj == 1))
+	if(IsCounterAttack())
 	{
 		SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
+		return Plugin_Continue;
 	}
 	else
 	{
