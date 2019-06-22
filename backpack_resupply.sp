@@ -2,7 +2,11 @@
 #include <sdktools>
 #include <sdkhooks>
 
-new g_iPlayerEquipGear;
+int g_iPlayerEquipGear;
+int g_nObjResource;
+int g_nCurrentActiveObj;
+int g_nTotalObj;
+
 int nClientSupplier = 0;
 int nDefaultResupplyPenalty;
 int nDefaultResupplyBase;
@@ -63,6 +67,11 @@ public OnPluginStart()
 	//Find player gear offset
 	g_iPlayerEquipGear = FindSendPropInfo("CINSPlayer", "m_EquippedGear");
 	
+	//Object resource
+	g_nObjResource = FindEntityByClassname(-1, "ins_objective_resource");
+	g_nCurrentActiveObj = FindSendPropInfo("CINSObjectiveResource", "m_nActivePushPointIndex");
+	g_nTotalObj = FindSendPropInfo("CINSObjectiveResource", "m_iNumControlPoints");
+	
 	HookEvent("player_spawn", Event_PlayerRespawn);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
@@ -77,6 +86,8 @@ public OnPluginStart()
 
 public void OnMapStart()
 {
+	g_nObjResource = FindEntityByClassname(-1, "ins_objective_resource");
+	
 	//Get default
 	ConVar cvarResupplyPenalty = FindConVar("mp_player_resupply_coop_delay_penalty");
 	nDefaultResupplyPenalty = GetConVarInt(cvarResupplyPenalty);
@@ -366,50 +377,56 @@ public Action:ResupplyListener(client, const String:cmd[], argc)
 
 public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	int nAttacker = GetEventInt(event, "attacker");
+	new acp = GetEntData(g_nObjResource, g_nCurrentActiveObj);
+	new ncp = GetEntData(g_nObjResource, g_nTotalObj);
 	
-	float fRandom = GetRandomFloat(0.0, 1.0);
-	
-	new Handle:cvar;
-	cvar = INVALID_HANDLE;
-	
-	if(nAttacker == nClientSupplier)
+	if(acp+1 != ncp)
 	{
-		new nBackpackID = GetEntData(nClientSupplier, g_iPlayerEquipGear + (4 * 5));
-		if((nBackpackID == nBackpackTheaterID1) || (nBackpackID == nBackpackTheaterID2))
+		int nAttacker = GetEventInt(event, "attacker");
+		
+		float fRandom = GetRandomFloat(0.0, 1.0);
+		
+		new Handle:cvar;
+		cvar = INVALID_HANDLE;
+		
+		if(nAttacker == nClientSupplier)
 		{
-			cvar = FindConVar("mp_checkpoint_counterattack_disable");
-			SetConVarInt(cvar, 1, true, false);
+			new nBackpackID = GetEntData(nClientSupplier, g_iPlayerEquipGear + (4 * 5));
+			if((nBackpackID == nBackpackTheaterID1) || (nBackpackID == nBackpackTheaterID2))
+			{
+				cvar = FindConVar("mp_checkpoint_counterattack_disable");
+				SetConVarInt(cvar, 1, true, false);
+			}
+			else if(fRandom < 0.5)
+			{
+				cvar = FindConVar("mp_checkpoint_counterattack_disable");
+				SetConVarInt(cvar, 0, true, false);
+				cvar = FindConVar("mp_checkpoint_counterattack_always");
+				SetConVarInt(cvar, 1, true, false);
+			}
 		}
-		else if(fRandom < 0.5)
+		else if(nClientSupplier == 0)
 		{
-			cvar = FindConVar("mp_checkpoint_counterattack_disable");
-			SetConVarInt(cvar, 0, true, false);
-			cvar = FindConVar("mp_checkpoint_counterattack_always");
-			SetConVarInt(cvar, 1, true, false);
-		}
-	}
-	else if(nClientSupplier == 0)
-	{
-		if(fRandom < 0.5)
-		{
-			cvar = FindConVar("mp_checkpoint_counterattack_disable");
-			SetConVarInt(cvar, 0, true, false);
-			cvar = FindConVar("mp_checkpoint_counterattack_always");
-			SetConVarInt(cvar, 2, true, false);
+			if(fRandom < 0.5)
+			{
+				cvar = FindConVar("mp_checkpoint_counterattack_disable");
+				SetConVarInt(cvar, 0, true, false);
+				cvar = FindConVar("mp_checkpoint_counterattack_always");
+				SetConVarInt(cvar, 2, true, false);
+			}
+			else
+			{
+				cvar = FindConVar("mp_checkpoint_counterattack_disable");
+				SetConVarInt(cvar, 1, true, false);
+			}
 		}
 		else
 		{
 			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+			SetConVarInt(cvar, 0, true, false);
+			cvar = FindConVar("mp_checkpoint_counterattack_always");
 			SetConVarInt(cvar, 1, true, false);
 		}
-	}
-	else
-	{
-		cvar = FindConVar("mp_checkpoint_counterattack_disable");
-		SetConVarInt(cvar, 0, true, false);
-		cvar = FindConVar("mp_checkpoint_counterattack_always");
-		SetConVarInt(cvar, 1, true, false);
 	}
 }
 
