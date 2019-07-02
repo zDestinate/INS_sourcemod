@@ -15,6 +15,9 @@ int g_nTotalObj;
 int g_nSecurityLockedObj;
 int g_nInsurgentsLockedObj;
 bool g_bLoaded = false;
+bool g_bShow = false;
+int g_nTotalTime = 60 * 2;
+int g_nCounter = 0;
 
 public OnPluginStart() 
 {
@@ -24,6 +27,10 @@ public OnPluginStart()
 	g_nSecurityLockedObj = FindSendPropInfo("CINSObjectiveResource", "m_bSecurityLocked");
 	g_nInsurgentsLockedObj = FindSendPropInfo("CINSObjectiveResource", "m_bInsurgentsLocked");
 	
+	HookEvent("round_start", Event_RoundStart);
+	HookEvent("object_destroyed", Event_ObjectDestroyed);
+	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
+	
 	RegAdminCmd("listobj", Listobj, ADMFLAG_KICK, "List all the obj");
 	RegAdminCmd("showobj", Showobj, ADMFLAG_KICK, "Show the next obj");
 	RegAdminCmd("hideobj", Hideobj, ADMFLAG_KICK, "Hide the next obj");
@@ -31,6 +38,7 @@ public OnPluginStart()
 	if(!g_bLoaded)
 	{
 		CreateTimer(5.0, Timer_Check,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_Count,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -41,7 +49,26 @@ public OnMapStart()
 	if(!g_bLoaded)
 	{
 		CreateTimer(5.0, Timer_Check,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_Count,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
+}
+
+public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_bShow = false;
+	g_nCounter = 0;
+}
+
+public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_bShow = false;
+	g_nCounter = 0;
+}
+
+public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_bShow = false;
+	g_nCounter = 0;
 }
 
 public Action:Listobj(client, args)
@@ -71,6 +98,7 @@ public Action:Showobj(client, args)
 {
 	int acp = GetEntData(g_nObjResource, g_nCurrentActiveObj);
 	SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
+	g_bShow = true;
 	
 	ReplyToCommand(client, "Objective %d is show", acp);
 	
@@ -89,6 +117,11 @@ public Action:Timer_Check(Handle:Timer)
 		SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
 		return Plugin_Continue;
 	}
+	else if(g_bShow)
+	{	
+		SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
+		return Plugin_Continue;
+	}
 	else
 	{
 		int nTotalInsurgents;
@@ -100,7 +133,7 @@ public Action:Timer_Check(Handle:Timer)
 			}
 		}
 		
-		if(nTotalInsurgents <= 4)
+		if(nTotalInsurgents <= 3)
 		{
 			SetEntData(g_nObjResource, g_nSecurityLockedObj + acp, 0, 1);
 		}
@@ -111,6 +144,19 @@ public Action:Timer_Check(Handle:Timer)
 	}
 	
 	return Plugin_Continue;
+}
+
+public Action:Timer_Count(Handle:Timer)
+{
+	if(!g_bShow && (g_nCounter >= g_nTotalTime))
+	{
+		g_nCounter = 0;
+		g_bShow = true;
+	}
+	else if((!g_bShow) && (!IsCounterAttack()))
+	{
+		g_nCounter++;
+	}
 }
 
 bool:IsCounterAttack()
