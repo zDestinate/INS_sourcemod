@@ -35,7 +35,7 @@ public OnPluginStart()
 
 public OnMapStart()
 {
-	g_bGameStarted = true;
+	g_bGameStarted = false;
 }
 
 public Action:Event_RoundStartPost(Handle:event, const String:name[], bool:dontBroadcast)
