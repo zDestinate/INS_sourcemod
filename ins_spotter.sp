@@ -6,19 +6,22 @@ public Plugin:myinfo = {
     name = "[INS] Spotter Perk",
     description = "Spotter perk",
     author = "Neko-",
-    version = "1.0.0",
+    version = "1.0.1",
 };
 
 new g_iPlayerEquipGear;
 int g_nSpotterID = 29;
+new bool:g_nPlayerCanBeMark[MAXPLAYERS+1] = {true, ...};
 
 public OnPluginStart()
 {
 	//Find player gear offset
 	g_iPlayerEquipGear = FindSendPropInfo("CINSPlayer", "m_EquippedGear");
+	
+	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &nSubType, &nCmdNum, &nTickCount, &nSeed)  
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &nSubType, &nCmdNum, &nTickCount, &nSeed)
 {
 	if((!IsFakeClient(client)) && (IsPlayerAlive(client)))
 	{
@@ -27,7 +30,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		{
 			int nTargetView = getClientViewClient(client);
 			int nTargetAim = GetClientAimTarget(client, true);
-			if((nTargetView == nTargetAim) && (GetClientTeam(client) != GetClientTeam(nTargetAim)) && (IsPlayerAlive(nTargetAim)))
+			if((nTargetView == nTargetAim) && (GetClientTeam(client) != GetClientTeam(nTargetAim)) && (IsPlayerAlive(nTargetAim)) && (g_nPlayerCanBeMark[nTargetAim]))
 			{
 				int nValue = GetEntProp(nTargetAim, Prop_Send, "m_bGlowEnabled");
 				if(!nValue)
@@ -37,6 +40,30 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 				}
 			}
 		}
+	}
+}
+
+public OnClientPostAdminCheck(client)
+{
+	g_nPlayerCanBeMark[client] = true;
+}
+
+public OnClientDisconnect(client)
+{
+	g_nPlayerCanBeMark[client] = true;
+}
+
+public Event_PlayerPickSquad_Post(Handle:event, const String:name[], bool:dontBroadcast )
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+	decl String:class_template[64];
+	GetEventString(event, "class_template",class_template,sizeof(class_template));
+	
+	//Bot class imposter (To prevent bot with this class from getting mark)
+	if(StrContains(class_template, "imposter") > -1)
+	{
+		g_nPlayerCanBeMark[client] = false;
 	}
 }
 
