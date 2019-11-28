@@ -136,7 +136,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 			//Burn player if there is fire ammo
 			if(nWeaponUpgradeID == nFireAmmoID)
 			{
-				IgniteEntity(client, 5.0);
+				IgniteEntity(client, 4.0);
 			}
 		}
 	}
