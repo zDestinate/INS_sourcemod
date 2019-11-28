@@ -128,7 +128,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	int m_hUpgradeSlotOffset = GetEntSendPropOffs(AttackerWeapon, "m_upgradeSlots", true);
 	
 	if(m_hUpgradeSlotOffset != -1)
-    {
+	{
 		for(int i = 0; i < (4*8); i += 4)
 		{
 			int nWeaponUpgradeID = GetEntData(AttackerWeapon, m_hUpgradeSlotOffset + i);
