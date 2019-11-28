@@ -27,6 +27,7 @@ enum Teams
 
 int g_iPlayerEquipGear;
 int nArmorFireResistance = 8;
+int nFireAmmoID = 114;
 
 public OnPluginStart()
 {
@@ -47,7 +48,7 @@ public OnClientPutInServer(client)
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &nSubType, &nCmdNum, &nTickCount, &nSeed)  
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &nSubType, &nCmdNum, &nTickCount, &nSeed) 
 {
 	if(IsPlayerAlive(client))
 	{
@@ -91,21 +92,57 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));	
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	
 	//Get player ArmorID
 	int nArmorItemID = GetEntData(client, g_iPlayerEquipGear);
+	if(nArmorItemID == nArmorFireResistance)
+	{
+		return Plugin_Continue;
+	}
 	
-	//Get weapon name
 	decl String:sWeapon[32];
 	GetEventString(event, "weapon", sWeapon, sizeof(sWeapon));
 	
 	//If player don't have fire resistance armor and get hurt by those weapon then burn the player
 	//If you're running this plugin and don't have FireResistance armor then remove that Armor check in the if statement
 	//If you have more custom fire weapon then add it in here to have those weapon trigger the burn on players
-	if((nArmorItemID != nArmorFireResistance) && ((StrEqual(sWeapon, "grenade_molotov")) || (StrEqual(sWeapon, "grenade_anm14")) || (StrEqual(sWeapon, "grenade_m203_incid")) || (StrEqual(sWeapon, "grenade_gp25_incid"))))
+	if((StrEqual(sWeapon, "grenade_molotov")) || (StrEqual(sWeapon, "grenade_anm14")) || (StrEqual(sWeapon, "grenade_m203_incid")) || (StrEqual(sWeapon, "grenade_gp25_incid")))
 	{
 		IgniteEntity(client, 7.0);
 	}
+	
+	//=============================
+	//FIRE AMMO SECTION (START)
+	//Remove this section if you are not using fire ammo
+	//=============================
+	
+	//Get weapon ID
+	int AttackerWeapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+	if(AttackerWeapon < 0)
+	{
+		return Plugin_Continue;
+	}
+	
+	//Get weapon upgrades
+	int m_hUpgradeSlotOffset = GetEntSendPropOffs(AttackerWeapon, "m_upgradeSlots", true);
+	
+	if(m_hUpgradeSlotOffset != -1)
+    {
+		for(int i = 0; i < (4*8); i += 4)
+		{
+			int nWeaponUpgradeID = GetEntData(AttackerWeapon, m_hUpgradeSlotOffset + i);
+
+			//Burn player if there is fire ammo
+			if(nWeaponUpgradeID == nFireAmmoID)
+			{
+				IgniteEntity(client, 5.0);
+			}
+		}
+	}
+	//=============================
+	//FIRE AMMO SECTION (END)
+	//=============================
 	
 	return Plugin_Continue; 
 }
@@ -135,7 +172,7 @@ public Action:Timer_SpreadBurn(Handle:Timer)
 {
 	for(int nPlayer = 1; nPlayer <= MaxClients; nPlayer++)
 	{
-		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer))
+		if(IsClientInGame(nPlayer) && IsPlayerAlive(nPlayer) && (GetClientTeam(nPlayer) != view_as<int>(TEAM_SPECTATORS)))
 		{
 			int ent = GetEntPropEnt(nPlayer, Prop_Data, "m_hEffectEntity");
 			if(!IsValidEdict(ent))
