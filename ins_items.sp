@@ -2,7 +2,7 @@
 #include <sdktools>
 #include <sdkhooks>
 
-new const String:ToxicSmoke[] = "grenade_gas";
+#define DMG_HEADSHOT (1 << 31) /**< Damage from a headshot. */
 
 enum Teams
 {
@@ -30,6 +30,7 @@ new
 	bool:g_bDoubleJump		= true,
 	g_fLastButtons[MAXPLAYERS+1],
 	g_fLastFlags[MAXPLAYERS+1],
+	bool:g_bPlayerJump[MAXPLAYERS+1],
 	g_iJumps[MAXPLAYERS+1],
 	g_iJumpMax
 
@@ -38,7 +39,7 @@ public Plugin:myinfo =
 	name = "[INS] Items",
 	author = "Neko-",
 	description = "Custom item ability for INS",
-	version = "1.0.3"
+	version = "1.0.5"
 };
 
 public OnPluginStart()
@@ -81,7 +82,8 @@ public OnPluginStart()
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
 	HookEvent("player_blind", Event_OnFlashPlayerPre, EventHookMode_Pre);
 	HookEvent("player_spawn", Event_PlayerRespawnPre, EventHookMode_Pre);
-	AddCommandListener(ResupplyListener, "inventory_resupply");
+	//AddCommandListener(ResupplyListener, "inventory_resupply");
+	//AddCommandListener(ResupplyListener, "inventory_confirm");
 }
 
 public OnMapEnd()
@@ -95,7 +97,8 @@ public OnClientPutInServer(client)
     if(!IsFakeClient(client))
 	{
 		//Hook damage
-		SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage); 
+		SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage);
+		g_bPlayerJump[client] = false;
 	}
 }
 
@@ -133,9 +136,9 @@ public Action:Event_OnFlashPlayerPre(Handle:event, const String:name[], bool:don
 	return Plugin_Continue;
 }
 
-public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &ammotype, hitbox, hitgroup) 
+public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3]) 
 {
-	if(!IsValidClient(attacker) || !IsValidClient(victim))
+	if(!IsValidClient(victim))
 	{
 		return Plugin_Continue;
 	}
@@ -147,57 +150,53 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 	new nHelmetItemID = GetEntData(victim, g_iPlayerEquipGear + (4 * 1));
 	
 	//Get weapon of the attacker
-	decl String:sWeapon[32];
-	GetEdictClassname(inflictor, sWeapon, sizeof(sWeapon));
+	decl String:sGrenade[32];
+	GetEdictClassname(inflictor, sGrenade, sizeof(sGrenade));
 	
 	//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
-	if((StrEqual(sWeapon, "grenade_anm14") || StrEqual(sWeapon, "grenade_molotov")) && (nArmorItemID == g_nFireResistance_ID))
+	if((StrEqual(sGrenade, "grenade_anm14") || StrEqual(sGrenade, "grenade_molotov") || StrEqual(sGrenade, "grenade_m203_incid") || StrEqual(sGrenade, "grenade_gp25_incid")) && (nArmorItemID == g_nFireResistance_ID))
 	{
-		//If attack and victim on the same team and player is wearing FR then they take no damage
-		if(GetClientTeam(victim) == GetClientTeam(attacker))
-		{
-			damage = 0.0;
-			return Plugin_Changed;
-		}
-		//Otherwise player take 1.5 damage (Which is 1.5 damage per sec on fire)
-		else
-		{
-			damage = 1.5;
-			return Plugin_Changed;
-		}
+		damage = 1.5;
+		return Plugin_Changed;
 	}
 	
-	//If player armor is FR (Which is fire resistance armor) and attacker weapon is fire
-	if((StrEqual(sWeapon, ToxicSmoke)) && (nHelmetItemID == g_nGasMask_ID))
+	//If player armor is Toxic smoke
+	if((StrEqual(sGrenade, "grenade_gas")) && (nHelmetItemID == g_nGasMask_ID))
 	{
 		damage = 0.0;
 		return Plugin_Changed;
 	}
 	
-	if(GetClientTeam(victim) == GetClientTeam(attacker))
+	if((!IsValidClient(attacker)) || (GetClientTeam(victim) == GetClientTeam(attacker)))
 	{
 		return Plugin_Continue;
 	}
 	
-	//Sniper
-	if(StrEqual(sWeapon, "weapon_sks") && ((nHelmetItemID != 23) && (nHelmetItemID != 24)))
+	if(weapon > 0)
 	{
-		damage *= 100;
-		return Plugin_Changed;
-	}
-	
-	//Helmet
-	if(hitgroup == 1)
-	{
-		if(nHelmetItemID == 23)
+		decl String:sWeapon[32];
+		GetEdictClassname(weapon, sWeapon, sizeof(sWeapon));
+		
+		//Sniper
+		if(StrEqual(sWeapon, "weapon_sks") && ((nHelmetItemID != 23) && (nHelmetItemID != 24)))
 		{
-			damage = 65.0;
+			damage *= 100.0;
 			return Plugin_Changed;
 		}
-		else if(nHelmetItemID == 24)
+		
+		//Helmet
+		if(damagetype & DMG_HEADSHOT)
 		{
-			damage = 33.0;
-			return Plugin_Changed;
+			if(nHelmetItemID == 23)
+			{
+				damage = 65.0;
+				return Plugin_Changed;
+			}
+			else if(nHelmetItemID == 24)
+			{
+				damage = 33.0;
+				return Plugin_Changed;
+			}
 		}
 	}
 	
@@ -213,10 +212,10 @@ public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:don
 	{	
 		//Speed boost
 		//Get player misc item (5th offset with a DWORD(4 bytes))
-		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
+		new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
 		
 		//If item is speed boost ID
-		if((nPerkSpeedBoostItemID == g_nSpeedBoost_ID) || (client == g_nClientRunnerID))
+		if((nPerkItemID == g_nSpeedBoost_ID) || (client == g_nClientRunnerID))
 		{
 			//Increase player speedboost by 20%
 			SetEntDataFloat(client, g_iSpeedOffset, 1.20);
@@ -225,6 +224,16 @@ public Action:Event_PlayerRespawnPre(Handle:event, const String:name[], bool:don
 		{
 			//Reset player speed to 1
 			SetEntDataFloat(client, g_iSpeedOffset, 1.0);
+		}
+		
+		//If item is doublejump ID
+		if(nPerkItemID == g_nDoubleJump_ID)
+		{
+			g_bPlayerJump[client] = true;
+		}
+		else
+		{
+			g_bPlayerJump[client] = false;
 		}
 	}
 }
@@ -239,10 +248,10 @@ public Action:ResupplyListener(client, const String:cmd[], argc)
 	{	
 		//Speed boost
 		//Get player misc item (5th offset with a DWORD(4 bytes))
-		new nPerkSpeedBoostItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
+		new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4));
 		
 		//If item is speed boost ID
-		if(nPerkSpeedBoostItemID == g_nSpeedBoost_ID)
+		if(nPerkItemID == g_nSpeedBoost_ID)
 		{
 			//Increase player speedboost by 20%
 			SetEntDataFloat(client, g_iSpeedOffset, 1.20);
@@ -251,6 +260,16 @@ public Action:ResupplyListener(client, const String:cmd[], argc)
 		{
 			//Reset player speed to 1
 			SetEntDataFloat(client, g_iSpeedOffset, 1.0);
+		}
+		
+		//If item is doublejump ID
+		if(nPerkItemID == g_nDoubleJump_ID)
+		{
+			g_bPlayerJump[client] = true;
+		}
+		else
+		{
+			g_bPlayerJump[client] = false;
 		}
 	}
 	
@@ -334,7 +353,7 @@ stock ReJump(const any:client) {
 	new nPerkItemID = GetEntData(client, g_iPlayerEquipGear + (4 * 4))
 	
 	//If item is 26 then its double jump perk. Allow player to perform a double jump
-	if(nPerkItemID == g_nDoubleJump_ID)
+	if((nPerkItemID == g_nDoubleJump_ID) && g_bPlayerJump[client])
 	{
 		if ( 1 <= g_iJumps[client] <= g_iJumpMax) {						// has jumped at least once but hasn't exceeded max re-jumps
 			g_iJumps[client]++											// increment jump count
