@@ -79,7 +79,8 @@ new String:BlacklistWeaponNames[][] =
 	"weapon_gurkha",
 	"weapon_knife",
 	"weapon_kukri",
-	"weapon_katana"
+	"weapon_katana",
+	"weapon_riotshield"
 };
 
 public Plugin:myinfo = {
@@ -110,7 +111,9 @@ public OnPluginStart()
 	AutoExecConfig(true,"plugin.suicide");
 	
 	HookConVarChange(cvarEnabled,ConVarChanged);
+	HookEvent("player_spawn", Event_PlayerRespawn);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
+	HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
 	HookEvent("round_start", Event_RoundStart);
@@ -137,7 +140,7 @@ public OnConfigsExecuted()
 }
 public OnMapStart()
 {	
-	CreateTimer(2.5, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(3.0, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	PrecacheSound("weapons/ied/handling/ied_trigger_ins.wav");
 	PrecacheSound("player/voip_end_transmit_beep_03.wav");
 
@@ -200,6 +203,7 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 {
 	g_iRoundStatus = 0;
 }
+
 public Event_PlayerPickSquad(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	//PrintToServer("[SUICIDE] Running Event_PlayerPickSquad");
@@ -207,11 +211,32 @@ public Event_PlayerPickSquad(Handle:event, const String:name[], bool:dontBroadca
 
 	decl String:class_template[64];
 	GetEventString(event, "class_template",class_template,sizeof(class_template));
-	if( client) {
+	if(client)
+	{
 		g_client_last_classstring[client] = class_template;
 		if(StrContains(class_template, "suicider") > -1)
 		{
 			g_nSuiciderClass = 0;
+		}
+	}
+}
+
+public Event_PlayerRespawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(StrContains(g_client_last_classstring[client], "bomber") > -1)
+	{
+		new CurrentUserWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		if(CurrentUserWeapon < 0)
+		{
+			return;
+		}
+		
+		decl String:User_Weapon[32];
+		GetEdictClassname(CurrentUserWeapon, User_Weapon, sizeof(User_Weapon));
+		if(StrEqual(User_Weapon, "weapon_model10"))
+		{
+			SDKHooks_DropWeapon(client, CurrentUserWeapon, NULL_VECTOR, NULL_VECTOR);
 		}
 	}
 }
@@ -304,7 +329,8 @@ public Action:Cmd_Yell(client, args)
 
 public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to check if distance from player
 {
-	new Float:fBomberDistance = GetRandomFloat(100.0, 600.0);
+	//new Float:fBomberDistance = GetRandomFloat(100.0, 350.0);
+	new Float:fBomberDistance = 350.0;
 	//PrintToServer("[SUICIDE] TIMER: g_isDetonating: %i", g_isDetonating);
 	
 	////PrintToServer("[SUICIDE] TIMER STARTED");
@@ -341,47 +367,19 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 					//tDistance = Math_UnitsToMeters(tDistance);
 					//PrintToServer("[SUICIDE] Bomber Distance: %f ", tDistance);
 					
-					////PrintToServer("[SUICIDE] TIMER VICTIM DETECTED");
-					new validAntenna = -1;
-					validAntenna = FindValidProp_InDistance(bomber);
+					//PrintToServer("[SUICIDE] TIMER VICTIM DETECTED");
 					
-					if (tDistance < fBomberDistance)
+					if(tDistance < fBomberDistance)
 					{
-						new Float:fBomberViewThreshold = 0.80; // if negative, bombers back is turned
+						new Float:fBomberViewThreshold = 0.5; //0.8 if negative, bombers back is turned
 						new tCanBomberSeeTarget = (ClientViews(bomber, victim, fBomberDistance, fBomberViewThreshold));
 						if (tCanBomberSeeTarget)
 						{	
-							PrintToServer("[SUICIDE]Valid Antenna: %d ", validAntenna);
-							if (validAntenna != -1)
-							{
-								new fRandomInt = GetRandomInt(0, 100); 
-								PrintToServer("fRandomInt: %d, CVAR %d", fRandomInt, GetConVarInt(cvar_jammer_chance));
-								if (fRandomInt < GetConVarInt(cvar_jammer_chance)) //Jam IED
-								{
-									PrintToServer("[SUICIDE] JAMMED");
-									EmitSoundToAll("weapons/ied/handling/ied_trigger_ins.wav", bomber, SNDCHAN_VOICE, _, _, 1.0);
-									EmitSoundToAll("player/voip_end_transmit_beep_03.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
-									EmitSoundToAll("ui/sfx/beep.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
-									//PrintToChatAll("[Jammer] **IED Bomber Jammed**");
-									YellDetonateSound(bomber);
-								}
-								else
-								{
-									EmitSoundToAll("weapons/ied/handling/ied_trigger_ins.wav", bomber, SNDCHAN_VOICE, _, _, 1.0);
-									
-									PrintToServer("[SUICIDE] BOOM");
-									g_isDetonating[bomber] = 1;
-									CheckExplodeHurt(bomber);
-								}
-							}
-							else
-							{	
-								EmitSoundToAll("weapons/ied/handling/ied_trigger_ins.wav", bomber, SNDCHAN_VOICE, _, _, 1.0);
-									
-								PrintToServer("[SUICIDE] BOOM");
-								g_isDetonating[bomber] = 1;
-								CheckExplodeHurt(bomber);
-							}
+							EmitSoundToAll("weapons/ied/handling/ied_trigger_ins.wav", bomber, SNDCHAN_VOICE, _, _, 1.0);
+								
+							PrintToServer("[SUICIDE] BOOM");
+							g_isDetonating[bomber] = 1;
+							CheckExplodeHurt(bomber);
 						}
 						else
 						{
@@ -479,10 +477,11 @@ stock Float:GetEntitiesDistance(ent1, ent2)
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new victimId = GetEventInt(event, "userid");
+	new victim = GetClientOfUserId(victimId);
+	new attackerId = GetEventInt(event, "attacker");
+	new attacker = GetClientOfUserId(attackerId);
 	
 	////PrintToServer("[SUICIDE] Victim ID is %d, g_isDetonating: %i",victimId, g_isDetonating);
-	
-	new victim = GetClientOfUserId(victimId);
 	if (StrContains(g_client_last_classstring[victim], "bomber") > -1) //make sure its a bot bomber
 	{
 		if (IsClientInGame(victim) && IsFakeClient(victim) && g_isDetonating[victim] != 1)
@@ -498,7 +497,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 			GetEventString(event, "weapon", weapon, sizeof(weapon));
 			
 			//Addition
-			for (new count=0; count<5; count++)
+			for (new count=0; count < sizeof(BlacklistWeaponNames); count++)
 			{
 				if (StrEqual(weapon, BlacklistWeaponNames[count]))
 				{
@@ -668,6 +667,15 @@ public CheckExplodeHurt(client) {
 		}
 	}
 }
+public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	decl String:weaponCheck[64];
+	GetEventString(event, "weapon", weaponCheck, sizeof(weaponCheck)); 
+	if(StrEqual(weaponCheck, "grenade_ied", false))
+	{
+		SetEventString(event, "weapon", "IED");
+	}
+}
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new Float:fExplosiveDeathChance = GetConVarFloat(cvarExplosiveDeathChance);
@@ -720,6 +728,8 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	}
 	
 	g_isDetonating[victim] = 0;
+	
+	return Plugin_Continue;
 }
 public CheckExplodeDeath(client) {
 	//new m_iSquad = GetEntProp(client, Prop_Send, "m_iSquad");
