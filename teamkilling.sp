@@ -3,6 +3,7 @@
 #include <dynamic>
 #include <SteamWorks>
 #include <scp>
+//#include <ins_levelsystem>
 
 #define PLUGIN_DESCRIPTION "TeamKill System"
 #define PLUGIN_NAME "[INS] TeamKilling"
@@ -21,6 +22,8 @@ new Handle:hConfigFile = INVALID_HANDLE;
 
 new Handle:cvarBanMultiplier = INVALID_HANDLE;
 new Handle:cvarBanMaxTime = INVALID_HANDLE;
+
+//int nScorePenaltyAmount = 150;
 
 char gS_WebhookURL[1024];
 
@@ -136,6 +139,8 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			GetClientName(victim, strVictim, sizeof(strVictim));
 			GetClientName(attacker, strAttacker, sizeof(strAttacker));
 			
+			//Add score penalty
+			//LS_AddClientScorePenalty(attacker, nScorePenaltyAmount);
 			
 			decl String:strVictimAuthID[64];
 			GetClientAuthString(victim, strVictimAuthID, 64);
@@ -144,6 +149,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			
 			char[] sNewMessage = new char[1024];
 			FormatEx(sNewMessage, 1024, "**[%s] %s** killed a teammate **([%s] %s)**", strAttackerAuthID, strAttacker, strVictimAuthID, strVictim);
+			//FormatEx(sNewMessage, 1024, "**[%s] %s** killed a teammate **([%s] %s)** and added %d score penalty", strAttackerAuthID, strAttacker, strVictimAuthID, strVictim, nScorePenaltyAmount);
 			EscapeString(sNewMessage, 1024);
 			ReplaceString(sFormat, 1024, "{msg}", sNewMessage);
 			
@@ -152,8 +158,8 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			SteamWorks_SetHTTPCallbacks(hRequest, view_as<SteamWorksHTTPRequestCompleted>(OnRequestComplete));
 			SteamWorks_SendHTTPRequest(hRequest);
 
-			
 			PrintToChatAll("\x01\x07e32d2d%s\x01 killed a teammate (\x01\x07e32d2d%s\x01)\n\x01\x07e32d2d%s\x01 total TK: %i of %i", strAttacker, strVictim, strAttacker, g_nPlayerTKCounter[attacker], g_nKickLimit);
+			//PrintToChatAll("\x01\x07e32d2d%s\x01 killed a teammate (\x01\x07e32d2d%s\x01)\n\x01\x07e32d2d%s\x01 total TK: %i of %i (Added %d score penalty)", strAttacker, strVictim, strAttacker, g_nPlayerTKCounter[attacker], g_nKickLimit, nScorePenaltyAmount);
 			PrintToServer("[Teamkilling] %s killed a teammate (%s)", strAttacker, strVictim);
 			
 			new AdminId:admin = GetUserAdmin(attacker);
@@ -289,6 +295,9 @@ public Action:Cmd_Forgive(client, args)
 			
 			g_nPlayerTKCounter[attacker]--;
 			g_nTotalForgive++;
+			
+			//Add score penalty
+			//LS_RemoveClientScorePenalty(attacker, nScorePenaltyAmount);
 			
 			PrintToChatAll("\x01\x07e32d2d%s\x01 forgive \x01\x07e32d2d%s\x01 \n\x01\x07e32d2d%s\x01 total TK: %i of %i", strVictim, strAttacker, strAttacker, g_nPlayerTKCounter[attacker], g_nKickLimit);
 			g_nVictimMarker[client] = 0;
