@@ -123,6 +123,9 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 
 public Action:RemoveProtection(Handle:timer, any:client)
 {
+	if(!IsValidClient(client))
+		return;
+	
 	//Get player protection
 	new nTakeDamage = GetEntProp(client, Prop_Data, "m_takedamage");
 	
@@ -149,4 +152,12 @@ public Action:NoMoreRoundProtection(Handle:timer)
 	{
 		g_bGameStarted = true;
 	}
+}
+
+bool:IsValidClient(client) 
+{
+    if ( !( 1 <= client <= MaxClients ) || !IsClientInGame(client) ) 
+        return false; 
+     
+    return true; 
 }
