@@ -17,10 +17,25 @@ rconConnection.on('auth', function() {
 	console.log("[RCON] Response: " + str);
 }).on('end', function() {
 	console.log("[RCON] Socket closed!");
+}).on('error', function(err){
+	try
+	{
+		rconConnection.connect();
+	}
+	catch(err)
+	{
+	}
 });
 
 //Establish rcon connection
-rconConnection.connect();
+try
+{
+	rconConnection.connect();
+}
+catch(err)
+{
+	console.log(err);
+}
 
 
 //Discord bot events
